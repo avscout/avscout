@@ -171,17 +171,17 @@ function safePathSegment(s) {
 //   - Building folder: "Building X" where X is storeyName split on first dash
 //   - Filename: storeyName (or title fallback)
 // If storeyName is missing, the building folder is skipped and the title is used.
-function buildFloorplanPath(item, kind /* 'Base' | 'Surveyed' */) {
+function buildFloorplanPath(item, kind /* 'Base' | 'Surveyed' */, ext = 'html') {
   const kindFolder = safePathSegment(kind);
   const storey = (item.storeyName || '').trim();
   if (!storey) {
     const fallback = safeFilename(item.title || 'floorplan');
-    return `Floorplans/${kindFolder}/${fallback}.html`;
+    return `Floorplans/${kindFolder}/${fallback}.${ext}`;
   }
   const buildingId = storey.split('-')[0].trim(); // "17-00" → "17", "30a-K1" → "30a"
   const buildingFolder = safePathSegment(`Building ${buildingId}`);
   const filename = safeFilename(storey);
-  return `Floorplans/${kindFolder}/${buildingFolder}/${filename}.html`;
+  return `Floorplans/${kindFolder}/${buildingFolder}/${filename}.${ext}`;
 }
 
 // ── Storage ──────────────────────────────────────────────────────────────────
@@ -7847,6 +7847,13 @@ ${scriptText}
 
 // ── Render ───────────────────────────────────────────────────────────────────
 
+// Page-based rendering. The captured-plans list can grow long; rather
+// than rely on flex-overflow scrolling (which had cross-browser issues),
+// we paginate. 7 items fit comfortably in the side panel above the
+// paginator row. State lives only in memory — resets to page 1 on reload.
+const PAGE_SIZE = 6;
+let currentPage = 1;
+
 async function render() {
   const items = await loadItems();
   const hasItems = items.length > 0;
@@ -7857,13 +7864,29 @@ async function render() {
 
   Array.from(itemsList.querySelectorAll('.item-card')).forEach(el => el.remove());
 
+  // Remove any previous paginator so we can redraw it cleanly
+  const existingPager = document.getElementById('pager');
+  if (existingPager) existingPager.remove();
+
   if (!hasItems) {
     emptyState.style.display = 'flex';
     return;
   }
   emptyState.style.display = 'none';
 
-  items.forEach((item, idx) => {
+  // Clamp current page in case the underlying list shrunk (e.g. deletes)
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const endIdx   = Math.min(startIdx + PAGE_SIZE, items.length);
+
+  // Only render the current page's slice. The card's data-idx is the
+  // ABSOLUTE index into the items array (not the slice index), so all
+  // the existing click handlers continue to work without changes.
+  for (let idx = startIdx; idx < endIdx; idx++) {
+    const item = items[idx];
     const card = document.createElement('div');
     card.className   = 'item-card';
     card.dataset.idx = idx;
@@ -7928,7 +7951,28 @@ async function render() {
       </div>`;
 
     itemsList.appendChild(card);
-  });
+  }
+
+  // Paginator — only shown when there's more than one page.
+  if (totalPages > 1) {
+    const pager = document.createElement('div');
+    pager.id = 'pager';
+    pager.className = 'pager';
+    const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+    const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+    pager.innerHTML = `
+      <button class="pager-btn" id="pagerPrev" ${prevDisabled} aria-label="Previous page">←&nbsp;Prev</button>
+      <div class="pager-info"><span class="pager-current">${currentPage}</span>&nbsp;/&nbsp;<span class="pager-total">${totalPages}</span></div>
+      <button class="pager-btn" id="pagerNext" ${nextDisabled} aria-label="Next page">Next&nbsp;→</button>
+    `;
+    itemsList.parentElement.insertBefore(pager, itemsList.nextSibling);
+    document.getElementById('pagerPrev').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; render(); }
+    });
+    document.getElementById('pagerNext').addEventListener('click', () => {
+      if (currentPage < totalPages) { currentPage++; render(); }
+    });
+  }
 
   bindCardEvents();
 }
@@ -8089,11 +8133,19 @@ btnCapture.addEventListener('click', async () => {
       await saveItems(items);
     } catch (_) { return; }
     setStatus(`Captured "${title}"`, 'success');
+    // A new plan was just added to the front — jump to page 1 so the
+    // user sees it instead of being stranded on whatever page they
+    // happened to be on.
+    currentPage = 1;
     render();
   });
 });
 
 // ── Export All as ZIP ────────────────────────────────────────────────────────
+//
+// Bundles every captured floorplan as a raw .svg file inside a Floorplans/Base/
+// Building XX/ hierarchy — the same path scheme that the per-item Download
+// HTML uses, but with .svg files and the same SVG content as Copy SVG.
 
 btnExportZip.addEventListener('click', async () => {
   const items = await loadItems();
@@ -8109,10 +8161,22 @@ btnExportZip.addEventListener('click', async () => {
 
   try {
     const zip = new JSZip();
+    // Multiple captures could share a floor code and collide on the same
+    // path. Dedupe by appending -2, -3, etc.
+    const usedPaths = new Set();
     items.forEach(item => {
-      const html     = buildInteractiveHtml(item.title, item.svgContent, item.storeyName);
-      const filename = safeFilename(item.title) + '.html';
-      zip.file(filename, html);
+      let path = buildFloorplanPath(item, 'Base', 'svg');
+      if (usedPaths.has(path)) {
+        const dot  = path.lastIndexOf('.');
+        const base = dot >= 0 ? path.slice(0, dot) : path;
+        const ext  = dot >= 0 ? path.slice(dot)    : '';
+        for (let i = 2; i < 100; i++) {
+          const candidate = `${base}-${i}${ext}`;
+          if (!usedPaths.has(candidate)) { path = candidate; break; }
+        }
+      }
+      usedPaths.add(path);
+      zip.file(path, item.svgContent);
     });
 
     const blob = await zip.generateAsync({
@@ -8129,8 +8193,8 @@ btnExportZip.addEventListener('click', async () => {
     a.click();
     setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 2000);
 
-    setStatus(`Exported ${items.length} plan${items.length > 1 ? 's' : ''}`, 'success');
-    showToast(`✓ ${items.length} file${items.length > 1 ? 's' : ''} exported`);
+    setStatus(`Exported ${items.length} floorplan${items.length > 1 ? 's' : ''}`, 'success');
+    showToast(`✓ ${items.length} SVG${items.length > 1 ? 's' : ''} exported`);
   } catch (err) {
     setStatus('Export failed: ' + err.message, 'error');
   } finally {
