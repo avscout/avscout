@@ -1,0 +1,83 @@
+name: build
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+# Allow the workflow to deploy to Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Cancel old in-progress deploys when a new push comes in
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Smoke tests
+        run: |
+          npm run smoke
+          npm run storage-test
+          npm run pwa-check
+          npm run pwa-boot
+
+      # Always available as artifacts for download
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: floorplan-ext
+          path: dist/floorplan-ext/
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avscout-harness
+          path: dist/avscout-harness/
+          retention-days: 30
+      - uses: actions/upload-artifact@v4
+        with:
+          name: avscout-pwa
+          path: dist/avscout-pwa/
+          retention-days: 30
+
+      # Prepare the Pages artifact (PWA contents become the site root)
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/avscout-pwa/
+
+  deploy-pages:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

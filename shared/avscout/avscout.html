@@ -1,0 +1,525 @@
+
+<!-- Toolbar -->
+<div id="toolbar">
+  <div id="tb-brand">
+    <svg id="tb-logo" viewBox="0 0 285.06 75" xmlns="http://www.w3.org/2000/svg">
+      <defs><style>.al{fill:#fff}.ab{fill:#2bace2}</style></defs>
+      <path class="al" d="M193.5,24.06c-5.39-6.3-14.6-8.39-22.32-5.2-8.42,3.48-13.24,11.97-12.45,20.98.37,4.24,2.19,7.84,4.77,10.91-.78,1.45-1.86,2.22-3.3,2.05l-11.23,11.69c-.56.58-.86,2.28-.23,2.92l3.31,3.31c.5.5,2.11.25,2.73-.07l11.7-12.3c-.32-1.39.67-3.07,1.99-3.25,7.93,4.27,17.72,3.29,24.13-3.05,7.7-7.62,7.98-19.72.9-28ZM187.59,49.07c-5.05,4.05-12.51,4.28-17.75.25-5.23-4.03-7.33-11-4.59-17.42,2.35-5.49,7.47-8.9,13.07-8.96,5.83-.06,10.94,3.14,13.36,8.52,2.81,6.25,1.22,13.35-4.09,17.61Z"/>
+      <path class="ab" d="M38.85,17.75l-9.41-.04-15.18,38.14,9.36.04,2.82-7.24,15.18.04,2.72,7.22,9.53-.04-15.02-38.11ZM29.4,41.18l4.74-12.49,4.84,12.46-9.58.04Z"/>
+      <path class="al" d="M227.01,18.18l-.12,23.51c-.02,3.3-2.5,6.14-5.39,6.87-2.53.64-4.92.29-7.01-1.29-1.52-1.15-3-3.46-3.01-5.9l-.07-23.19h-8.62s.06,22.61.06,22.61c0,2.19.57,4.45,1.28,6.44,1.48,4.17,4.69,7.23,8.89,8.56,8.53,2.71,18.34-.05,21.45-8.86.68-1.93,1.19-4.04,1.19-6.15l.03-22.63-8.7.03Z"/>
+      <path class="al" d="M111.64,35.81c-2.22-1.17-4.69-1.84-7.14-2.64l-4.83-1.58c-1.29-.42-1.93-1.88-1.85-3.03.08-1.25.9-2.36,2.25-2.8,4.26-1.37,7.94.57,11.52,2.89l4.68-6.18c-5.13-4.43-12.17-6.21-18.7-4.23-3.65,1.1-6.5,3.71-7.58,6.76-1.37,3.85-.97,7.94,1.51,10.88,1.75,2.08,4.3,3.18,6.83,3.96l7.54,2.34c1.59.49,2.55,2.07,2.43,3.5-.42,5.1-10.64,4.12-15.66-1.16l-4.83,6.13c5.68,5.57,13.97,7.57,21.41,5.1,4.8-1.6,7.71-5.67,7.78-10.73.06-4.06-1.85-7.36-5.36-9.22Z"/>
+      <polygon class="ab" points="77.17 17.7 67.31 44.27 57.67 17.68 47.97 17.72 62.68 55.9 71.46 55.88 86.72 17.74 77.17 17.7"/>
+      <path class="al" d="M139.2,48.74c-3.42-.47-6.67-2.55-8.35-6.22-2.31-5.03-1.06-11.08,3.17-14.55,4.78-3.92,11.56-2.74,15.45,2.09l5.93-5.97c-5.64-6.33-14.64-8.38-22.6-5.02-7.31,3.09-12.06,10.53-11.89,18.82.22,10.69,8.53,18.91,19.27,18.94,5.82.01,11.32-2.2,15.05-6.82l-5.77-5.58c-2.51,3.23-6.27,4.85-10.25,4.3Z"/>
+      <polygon class="al" points="240.54 18.15 240.55 26.23 251.35 26.25 251.32 55.9 260.13 55.87 260.15 26.26 271 26.23 271.01 18.16 240.54 18.15"/>
+      <path class="al" d="M177.83,26.27c-9.62.69-12.16,11.74-9.39,11.94.65.05,1.27-.55,1.29-1.29.4-4.6,4.04-8.06,8.72-8.3.32-.3.65-.96.64-1.33,0-.41-.77-1.06-1.27-1.02Z"/>
+    </svg>
+    <h1>{{TITLE}}</h1>
+  </div>
+  <div class="tb-divider"></div>
+  <input type="file" id="importFileInput" accept=".xlsx"/>
+  <button class="tb-btn" id="btnPlaceMarker">
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6">
+      <path d="M6 1A3 3 0 0 1 9 4C9 7 6 11 6 11S3 7 3 4A3 3 0 0 1 6 1z"/>
+      <circle cx="6" cy="4" r="1" fill="currentColor" stroke="none"/>
+    </svg>Marker
+  </button>
+  <button class="tb-btn" id="btnSnip">
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6">
+      <rect x="1" y="1" width="10" height="10" rx="1" stroke-dasharray="2.5 1.5"/>
+      <line x1="4" y1="7" x2="8" y2="7" stroke-linecap="round"/>
+      <line x1="6" y1="5" x2="6" y2="9" stroke-linecap="round"/>
+    </svg>Snip
+  </button>
+  <div class="tb-divider"></div>
+  <button class="tb-btn" id="btnSaveMarkers">
+    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6">
+      <path d="M6 1v6M3.5 4.5L6 7l2.5-2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M1.5 10h9" stroke-linecap="round"/>
+    </svg>Save
+  </button>
+  <button class="tb-btn" id="btnAdvanced" title="Data">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
+      <path d="M8 1.5l.9.3.3 1.3.9.4 1.1-.7.9.9-.7 1.1.4.9 1.3.3.3.9-1.3.3-.4.9.7 1.1-.9.9-1.1-.7-.9.4-.3 1.3-.9.3-.3-1.3-.9-.4-1.1.7-.9-.9.7-1.1-.4-.9-1.3-.3-.3-.9 1.3-.3.4-.9-.7-1.1.9-.9 1.1.7.9-.4.3-1.3.9-.3z"/>
+      <circle cx="8" cy="8" r="2.2"/>
+    </svg>Data
+  </button>
+</div>
+
+<!-- Side Panel -->
+<div id="side-panel">
+  <div id="panel-header">
+    <div class="panel-tab active" data-tab="assets">
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 6h8M6 2v8" stroke-linecap="round"/><circle cx="6" cy="6" r="5"/></svg>
+      Imports
+    </div>
+    <div class="panel-tab" data-tab="new">
+      🐣 Newcomers
+    </div>
+    <div class="panel-tab" id="moversTab" data-tab="movers" style="display:none">
+      ♻️ Movers
+    </div>
+  </div>
+  <div id="panel-import-strip" style="display:none">
+    <div id="import-status-dot"></div>
+    <span id="import-status-text">No file imported</span>
+  </div>
+  <div class="panel-body" id="panel-body-assets">
+    <div id="panel-import-strip-inner">
+      <div id="import-status-dot2"></div>
+      <span id="import-status-text2">No file imported</span>
+      <button class="panel-strip-info" id="btnImportCacheInfo" title="About cached imports" style="display:none">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" width="12" height="12">
+          <circle cx="7" cy="7" r="6"/>
+          <line x1="7" y1="6" x2="7" y2="10" stroke-linecap="round"/>
+          <circle cx="7" cy="4.2" r=".6" fill="currentColor"/>
+        </svg>
+      </button>
+      <button class="panel-eye-btn imports-eye" id="btnEyeImports" title="Hold to highlight imported rooms">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" width="14" height="14">
+          <g id="eye-imports-open" display="none"><path d="M1 7C2.5 4 4.5 2.5 7 2.5S11.5 4 13 7C11.5 10 9.5 11.5 7 11.5S2.5 10 1 7z"/><circle cx="7" cy="7" r="2" fill="currentColor" stroke="none"/></g>
+          <g id="eye-imports-closed"><path d="M1 7C2.5 4 4.5 2.5 7 2.5S11.5 4 13 7C11.5 10 9.5 11.5 7 11.5S2.5 10 1 7z" opacity=".4"/><circle cx="7" cy="7" r="2" opacity=".4"/><line x1="2" y1="2" x2="12" y2="12" stroke-linecap="round" stroke-width="1.6"/></g>
+        </svg>
+      </button>
+    </div>
+    <div class="panel-empty" id="panel-empty-assets">
+      <div class="panel-empty-icon">📂</div>
+      <div class="panel-empty-title">Let's get started!</div>
+      <div class="panel-empty-sub">Import an Excel file with asset data<br/>to begin your survey.</div>
+      <button class="panel-empty-btn" id="btn-empty-import">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="M7 1v8M4 6l3 3 3-3" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 11h10" stroke-linecap="round"/>
+        </svg>
+        Import Excel
+      </button>
+    </div>
+    <div id="asset-room-list"></div>
+  </div>
+  <div class="panel-body hidden" id="panel-body-new">
+    <div id="panel-disco-strip">
+      <div id="disco-status-dot"></div>
+      <span id="disco-status-text">No newcomers yet</span>
+      <button class="panel-strip-add" id="btnAddNewcomerStrip" title="Add a newcomer">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8" width="12" height="12">
+          <line x1="7" y1="2.5" x2="7" y2="11.5" stroke-linecap="round"/>
+          <line x1="2.5" y1="7" x2="11.5" y2="7" stroke-linecap="round"/>
+        </svg>
+        Add Newcomer
+      </button>
+      <button class="panel-eye-btn disco-eye" id="btnEyeDisco" title="Hold to highlight newcomer rooms">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.4" width="14" height="14">
+          <g id="eye-disco-open" display="none"><path d="M1 7C2.5 4 4.5 2.5 7 2.5S11.5 4 13 7C11.5 10 9.5 11.5 7 11.5S2.5 10 1 7z"/><circle cx="7" cy="7" r="2" fill="currentColor" stroke="none"/></g>
+          <g id="eye-disco-closed"><path d="M1 7C2.5 4 4.5 2.5 7 2.5S11.5 4 13 7C11.5 10 9.5 11.5 7 11.5S2.5 10 1 7z" opacity=".4"/><circle cx="7" cy="7" r="2" opacity=".4"/><line x1="2" y1="2" x2="12" y2="12" stroke-linecap="round" stroke-width="1.6"/></g>
+        </svg>
+      </button>
+    </div>
+    <div class="panel-empty" id="panel-empty-new">
+      <div class="panel-empty-icon">🐣</div>
+      <div class="panel-empty-title">No newcomers yet</div>
+      <div class="panel-empty-sub">Add a newcomer, then pick a room on the map.</div>
+      <button class="panel-empty-btn" id="btnAddNewcomerEmpty">
+        <span style="font-size:13px;line-height:1;">＋</span>
+        Add Newcomer
+      </button>
+    </div>
+    <div id="new-room-list"></div>
+  </div>
+  <div class="panel-body hidden" id="panel-body-movers">
+    <div class="panel-empty" id="panel-empty-movers">
+      <div class="panel-empty-icon">♻️</div>
+      No movers yet.
+    </div>
+    <div id="movers-room-list"></div>
+    <div id="movers-stored-section"></div>
+    <div id="movers-gone-section"></div>
+  </div>
+</div>
+
+<!-- FAB group -->
+<div id="fab-group">
+  <button class="fab" id="fab-panel-toggle" title="Toggle asset panel">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
+      <rect x="2" y="3" width="16" height="14" rx="2"/>
+      <line x1="13" y1="3" x2="13" y2="17"/>
+    </svg>
+  </button>
+  <button class="fab" id="fab-compass" title="Align to North">
+    <svg viewBox="0 0 20 20" width="20" height="20">
+      <g id="compass-needle">
+        <polygon points="10,2 12,10 10,11 8,10" fill="#e8ff47"/>
+        <polygon points="10,18 12,10 10,11 8,10" fill="#555"/>
+      </g>
+      <circle cx="10" cy="10" r="2" fill="var(--surface)"/>
+    </svg>
+  </button>
+  <button class="fab fab-text" id="fab-reset" title="Reset view">reset</button>
+  <button class="fab" id="fab-zi" title="Zoom in">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
+      <circle cx="9" cy="9" r="6"/><line x1="13.5" y1="13.5" x2="18" y2="18"/>
+      <line x1="9" y1="6" x2="9" y2="12"/><line x1="6" y1="9" x2="12" y2="9"/>
+    </svg>
+  </button>
+  <div id="fab-zoom-pct">100%</div>
+  <button class="fab" id="fab-zo" title="Zoom out">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
+      <circle cx="9" cy="9" r="6"/><line x1="13.5" y1="13.5" x2="18" y2="18"/>
+      <line x1="6" y1="9" x2="12" y2="9"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Info bar -->
+<div id="infobar" class="empty">
+  <span id="info-empty">Single-click a room to select · Double-click to mark as visited</span>
+  <div id="info-room" style="display:none">
+    <div id="info-room-text">
+      <div id="info-room-code"></div>
+    </div>
+    <div id="info-room-space-name"></div>
+  </div>
+  <div id="info-devices" style="display:none"></div>
+  <div id="info-visited" style="display:none">
+    <div id="info-visited-dot"></div>
+    <div id="info-visited-label">Visited</div>
+  </div>
+  <div id="info-unlinked-wrap">
+    <a id="info-room-link" class="info-action-btn" href="#" target="_blank" title="View this room in TUDesc">
+      <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <path d="M2 7c1.5-3 3.5-4.5 5-4.5S10.5 4 12 7c-1.5 3-3.5 4.5-5 4.5S3.5 10 2 7z" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="7" cy="7" r="1.6" fill="currentColor" stroke="none"/>
+      </svg>
+      <span>View in TUDesc</span>
+    </a>
+    <button id="btn-acknowledge-all" class="info-action-btn" title="Examine this room">
+      <svg viewBox="0 0 14 14" fill="currentColor" aria-hidden="true">
+        <path d="M8 1 L3 8 L7 8 L6 13 L11 6 L7 6 Z"/>
+      </svg>
+      <span>Examine</span>
+    </button>
+  </div>
+</div>
+
+<!-- Bulk-link modal -->
+<!-- Bulk check modal -->
+<div id="ackOverlay">
+  <div id="ackModal">
+    <h2>
+      <svg viewBox="0 0 14 14" fill="currentColor" aria-hidden="true" style="width:14px;height:14px;color:var(--accent2);">
+        <path d="M8 1 L3 8 L7 8 L6 13 L11 6 L7 6 Z"/>
+      </svg>
+      <span>Examine room <span id="ack-room-code-inline"></span></span>
+    </h2>
+    <div id="ack-room-sub"></div>
+    <div id="ack-status-picker">
+      <div class="ack-tab active" data-status="confirmed"><span>✅</span><span>Confirmed</span></div>
+      <div class="ack-tab" data-status="stored-av"><span>🗄️</span><span>AV</span></div>
+      <div class="ack-tab" data-status="stored-faculty"><span>🗄️</span><span>Faculty</span></div>
+      <div class="ack-tab" data-status="offmap"><span>📦</span><span>Off-map</span></div>
+      <div class="ack-tab" data-status="gone"><span>🗑️</span><span>Gone</span></div>
+    </div>
+    <div id="ack-hint">Pick a status, then click assets to assign it.</div>
+    <div id="ack-offmap-wrap" style="display:none;margin-bottom:10px;">
+      <div class="ack-offmap-label">Location for all off-map assets</div>
+      <div class="ack-offmap-segments">
+        <input class="ack-offmap-seg" id="ackOffmapSeg0" type="text" maxlength="4" placeholder="Bldg" autocomplete="off"/>
+        <span class="ack-offmap-dot">.</span>
+        <input class="ack-offmap-seg" id="ackOffmapSeg1" type="text" maxlength="4" placeholder="Wing" autocomplete="off"/>
+        <span class="ack-offmap-dot">.</span>
+        <input class="ack-offmap-seg" id="ackOffmapSeg2" type="text" maxlength="4" placeholder="Flr" autocomplete="off"/>
+        <span class="ack-offmap-dot">.</span>
+        <input class="ack-offmap-seg" id="ackOffmapSeg3" type="text" maxlength="4" placeholder="Room" autocomplete="off"/>
+      </div>
+    </div>
+    <div id="ack-select-all-row" class="selected">
+      <div class="ack-check"></div>
+      Select all
+    </div>
+    <div id="ack-asset-list"></div>
+    <div id="ack-actions">
+      <button class="btn-modal btn-cancel" id="ack-cancel-btn">Cancel</button>
+      <button class="btn-modal btn-confirm" id="ack-confirm-btn">Check</button>
+    </div>
+  </div>
+</div>
+
+<!-- Advanced modal -->
+<div id="advOverlay">
+  <div id="advModal">
+    <h2>⚙️ Data</h2>
+    <div id="adv-body">
+      <div class="adv-section">
+        <div class="adv-summary" id="adv-summary"></div>
+        <button class="adv-btn adv-btn-import" id="btn-import-excel">
+          <div class="adv-btn-label">Import Excel</div>
+          <div class="adv-btn-sub">Load an asset list from an .xlsx file.</div>
+        </button>
+        <button class="adv-btn adv-btn-export" id="btn-export-excel">
+          <div class="adv-btn-label">Export to Excel</div>
+          <div class="adv-btn-sub">Download the full survey as an .xlsx spreadsheet.</div>
+        </button>
+        <button class="adv-btn adv-btn-export" id="btn-export-survey">
+          <div class="adv-btn-label">Export survey (JSON)</div>
+          <div class="adv-btn-sub">Download survey results as JSON (for backend upload).</div>
+        </button>
+        <button class="adv-btn adv-btn-snip" id="btn-bulk-snip">
+          <div class="adv-btn-label">Bulk snip rooms</div>
+          <div class="adv-btn-sub">Download one SVG per room that has markers (zip archive).</div>
+          <div class="adv-progress-wrap" id="bulk-snip-progress" style="display:none;">
+            <div class="adv-progress-bar"><div class="adv-progress-fill" id="bulk-snip-fill"></div></div>
+            <div class="adv-progress-text" id="bulk-snip-text"></div>
+          </div>
+        </button>
+        <button class="adv-btn adv-btn-danger" id="btn-reset-floor">
+          <div class="adv-btn-label">Reset floor</div>
+          <div class="adv-btn-sub">Clears everything: markers, statuses, newcomers, imports, visited rooms.</div>
+        </button>
+      </div>
+    </div>
+    <div id="adv-actions">
+      <button class="btn-modal btn-cancel" id="adv-close-btn">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Cache info modal — shown when user taps the "i" button next to "Imported from cache" -->
+<div id="cacheInfoOverlay">
+  <div id="cacheInfoModal">
+    <h2>About cached imports</h2>
+    <div class="cache-info-body">
+      <p><strong>Where the data lives.</strong> Once you import an Excel file, the asset list is stored in your browser's local cache so you don't have to re-import every time you open this floor.</p>
+      <p><strong>What survives.</strong> Refreshing or reopening the file keeps your cached imports, markers, statuses, and newcomers intact.</p>
+      <p><strong>What clears it.</strong> Clearing browser cookies, site data, or running this in a private/incognito window will remove the cache. Different browsers or devices each have their own cache.</p>
+      <p><strong>How to be safe.</strong> When you're done surveying, hit <strong>Save</strong> in the toolbar. That bakes the current state into a downloadable HTML file you can keep — or send to others — independent of any cache.</p>
+    </div>
+    <div class="cache-info-actions">
+      <button class="btn-modal btn-confirm" id="cacheInfoClose">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pre-import equipment-type filter modal -->
+<div id="importFilterOverlay">
+  <div id="importFilterModal">
+    <h2>📥 Select equipment to import</h2>
+    <div class="import-filter-filename" id="importFilterFilename"></div>
+    <div class="import-filter-subhead" id="importFilterSubhead">
+      Choose which equipment types and floors to import from this file.
+    </div>
+    <div class="import-filter-body" id="importFilterBody">
+      <!-- Populated dynamically: matched list, then unmatched section if any -->
+    </div>
+    <div class="import-filter-actions">
+      <button class="import-filter-toggle-all" id="importFilterToggleAll" type="button">Select all</button>
+      <div class="import-filter-buttons">
+        <button class="btn-modal btn-cancel" id="importFilterCancel" type="button">Cancel</button>
+        <button class="btn-modal btn-confirm" id="importFilterConfirm" type="button">Import 0 assets</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Canvas -->
+<div id="canvas">
+  <div id="world">
+    <div id="svg-wrap"></div>
+  </div>
+</div>
+
+<!-- Marker modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title-row">
+      <h2 id="modalTitle">Place Asset Marker</h2>
+      <button type="button" class="modal-cog" id="modalCog" title="Show details" aria-expanded="false" style="display:none">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Details drawer (collapsed by default; toggled via cog button) -->
+    <div id="modalDetails" class="modal-details" hidden>
+      <div class="modal-details-list" id="modalDetailsList"></div>
+    </div>
+
+    <!-- Mode toggle: only shown when placing new (not editing existing) -->
+    <div class="modal-mode-toggle" id="modalModeToggle">
+      <button class="modal-mode-btn active" id="modalModeLink">🔗 Link to an Import</button>
+      <button class="modal-mode-btn" id="modalModeNew">🐣 Add Newcomer</button>
+    </div>
+
+    <!-- Link-to-asset section -->
+    <div id="modalLinkSection">
+      <div class="field-label">Select asset</div>
+      <div id="modal-asset-list">
+        <div id="modal-no-assets">No unplaced assets for this room</div>
+      </div>
+    </div>
+
+    <!-- New asset section -->
+    <div id="modalNewSection" style="display:none">
+      <div class="field-label">Name / Description</div>
+      <div class="modal-name-wrap">
+        <input type="text" id="modalName" placeholder="e.g. Beamer podium, Exit B…" maxlength="80" autocomplete="off"/>
+        <button class="btn-undo-name" id="btnRevertName" title="Reset to imported name">
+          <span aria-hidden="true">↩</span>
+          <span>reset name</span>
+        </button>
+      </div>
+      <div id="modalEquipField">
+        <div class="field-label">Equipment type</div>
+        <select id="modalEquip">{{EQUIP_OPTIONS}}</select>
+      </div>
+    </div>
+
+    <!-- Survey status — only shown when editing an imported marker -->
+    <div id="modalSurveySection" style="display:none">
+      <hr class="survey-divider"/>
+      <div class="survey-label">Status</div>
+      <div class="survey-options">
+        <div class="survey-opt" data-status="confirmed" id="surveyOptConfirmed">
+          <div class="survey-radio"></div>
+          <div class="survey-opt-body">
+            <div class="survey-opt-title">✅ Found</div>
+            <div class="survey-opt-sub">Asset found in a room on this floor</div>
+            <div class="survey-storage-opts" id="surveyInRoomOpts">
+              <div class="locate-by-label">Locate by</div>
+              <div class="lb-row">
+                <button type="button" class="lb-tab active" id="lbTabRoom" data-mode="room">Room</button>
+                <div class="lb-control">
+                  <div class="loc-typeahead">
+                    <div class="loc-input-wrap">
+                      <input type="text" id="locInput" autocomplete="off" placeholder="Search room…"/>
+                      <button type="button" class="loc-chevron" id="locChevron" tabindex="-1" aria-label="Show all rooms">
+                        <svg viewBox="0 0 10 6" width="10" height="6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 1l4 4 4-4"/></svg>
+                      </button>
+                    </div>
+                    <div class="loc-dropdown" id="locDropdown" style="display:none"></div>
+                    <div class="loc-confirm" id="locConfirm" style="display:none"></div>
+                  </div>
+                </div>
+              </div>
+              <div class="lb-row">
+                <button type="button" class="lb-tab" id="lbTabMarker" data-mode="marker">Marker</button>
+                <div class="lb-control" id="lbMarkerControl">
+                  <button class="btn-modal btn-position-m" id="btnPositionMarker">
+                    {{PIN_SVG_BTN}}
+                    Set position
+                  </button>
+                  <button class="btn-modal btn-move-m" id="btnMoveMarker" style="display:none">
+                    {{PIN_SVG_BTN}}
+                    Reposition
+                  </button>
+                  <button class="btn-modal btn-remove-m" id="btnRemoveMarker" style="display:none">
+                    {{PIN_SVG_BTN}}
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="survey-opt" data-status="offmap" id="surveyOptOffmap">
+          <div class="survey-radio"></div>
+          <div class="survey-opt-body">
+            <div class="survey-opt-title">📦 Off-map</div>
+            <div class="survey-opt-sub">Moved to another floor or building</div>
+            <div class="survey-storage-opts" id="surveyOffmapOpts">
+              <div class="offmap-segments" id="offmapSegments">
+                <input class="offmap-seg" id="offmapSeg0" type="text" maxlength="4" placeholder="Bldg" autocomplete="off"/>
+                <span class="offmap-dot">.</span>
+                <input class="offmap-seg" id="offmapSeg1" type="text" maxlength="4" placeholder="Wing" autocomplete="off"/>
+                <span class="offmap-dot">.</span>
+                <input class="offmap-seg" id="offmapSeg2" type="text" maxlength="4" placeholder="Flr" autocomplete="off"/>
+                <span class="offmap-dot">.</span>
+                <input class="offmap-seg" id="offmapSeg3" type="text" maxlength="4" placeholder="Room" autocomplete="off"/>
+              </div>
+              <div class="offmap-hint" id="offmapHint">Building is required</div>
+            </div>
+          </div>
+        </div>
+        <div class="survey-opt" data-status="stored" id="surveyOptStored">
+          <div class="survey-radio"></div>
+          <div class="survey-opt-body">
+            <div class="survey-opt-title">🗄️ Stored</div>
+            <div class="survey-opt-sub">Asset is in storage</div>
+            <div class="survey-storage-opts" id="surveyStorageOpts">
+              <button class="survey-storage-btn" data-loc="av_storage" id="storageAV">AV Storage</button>
+              <button class="survey-storage-btn" data-loc="faculty_storage" id="storageFaculty">Faculty Storage</button>
+            </div>
+          </div>
+        </div>
+        <div class="survey-opt" data-status="gone" id="surveyOptGone">
+          <div class="survey-radio"></div>
+          <div class="survey-opt-body">
+            <div class="survey-opt-title">🗑️ Gone</div>
+            <div class="survey-opt-sub">Decommissioned, disposed or stolen</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn-modal btn-delete-m"    id="btnDeleteMarker"   style="display:none">
+        Clear
+      </button>
+      <button class="btn-modal btn-move-m btn-move-m-ncomer" id="btnMoveMarkerNcomer" style="display:none">
+        {{PIN_SVG_BTN}}
+        Reposition
+      </button>
+      <button class="btn-modal btn-cancel"      id="btnModalCancel">Cancel</button>
+      <button class="btn-modal btn-confirm"     id="btnModalConfirm">Place</button>
+    </div>
+  </div>
+</div>
+
+<div id="fp-toast"></div>
+
+<!-- ── Phase 3 additions: floor rail + empty state + dialogs ─────────────── -->
+
+<!-- Left rail: buildings → floors. Collapsible like the right side panel.
+     No header inside the rail — the toolbar already shows the AVScout
+     brand. JSON import lives in the Data modal, not in the rail. -->
+<aside id="floor-rail">
+  <div class="rail-actions">
+    <button id="btn-add-svg" class="rail-btn primary" title="Add a floor by loading an SVG">+ Add SVG</button>
+  </div>
+  <div id="rail-tree" class="rail-tree"></div>
+</aside>
+
+<!-- Left-side FAB: floor rail toggle (mirrors the right-side panel toggle) -->
+<div id="fab-group-left">
+  <button class="fab" id="fab-rail-toggle" title="Toggle floor list">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.7">
+      <rect x="2" y="3" width="16" height="14" rx="2"/>
+      <line x1="7" y1="3" x2="7" y2="17"/>
+    </svg>
+  </button>
+</div>
+
+<!-- Empty state: shown when no floor has an SVG attached. Sits over canvas. -->
+<div id="empty-state" hidden>
+  <div class="empty-card">
+    <div class="empty-ico">📐</div>
+    <h2>No floorplan loaded</h2>
+    <p>Tap "+ Load SVG" to add your first floorplan.</p>
+    <button id="empty-svg-btn" class="empty-btn">+ Load SVG</button>
+  </div>
+</div>
+
+<!-- Context menu (floor ⋯) -->
+<div id="ctx-menu" hidden></div>
+
+<!-- In-app confirm dialog (replaces native confirm() in rail-driven flows) -->
+<div id="confirm-overlay" hidden>
+  <div id="confirm-box">
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-message">…</p>
+    <ul id="confirm-breakdown" class="breakdown"></ul>
+    <div class="actions">
+      <button id="confirm-cancel">Cancel</button>
+      <button id="confirm-ok">OK</button>
+    </div>
+  </div>
+</div>

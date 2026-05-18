@@ -1,0 +1,23 @@
+{
+  "name": "avscout-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Floorplan (Chrome extension) + AVScout (PWA) monorepo",
+  "type": "module",
+  "scripts": {
+    "build": "node build/build.mjs",
+    "build:ext": "node build/build.mjs --only=ext",
+    "build:harness": "node build/build.mjs --only=harness",
+    "build:pwa": "node build/build.mjs --only=pwa",
+    "watch": "node build/build.mjs --watch",
+    "smoke": "node build/headless-smoke.mjs",
+    "storage-test": "node build/storage-test.mjs",
+    "pwa-check": "node build/pwa-check.mjs",
+    "pwa-boot": "node build/pwa-boot-test.mjs",
+    "clean": "node -e \"import('node:fs').then(fs => fs.promises.rm('dist', { recursive: true, force: true }))\""
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^25.0.0"
+  }
+}

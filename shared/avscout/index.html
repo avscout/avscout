@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>AVScout</title>
+
+<!-- PWA install metadata -->
+<link rel="manifest" href="manifest.webmanifest"/>
+<meta name="theme-color" content="#0e0f11"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="AVScout"/>
+<link rel="apple-touch-icon" href="icons/icon-192.png"/>
+<link rel="icon" type="image/png" href="icons/icon-192.png"/>
+
+<!-- Fonts (the surveying app expects Segoe UI but Syne reads as a clean
+     alternative on platforms without it) -->
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+
+<link rel="stylesheet" href="avscout.css"/>
+</head>
+<body>
+<!--
+  ╔════════════════════════════════════════════════════════════════════╗
+  ║  AVScout — the surveying app's full body markup is embedded here   ║
+  ║  by build/build-pwa.mjs at build time. Do not edit between the     ║
+  ║  AVSCOUT_BODY_BEGIN / AVSCOUT_BODY_END markers — those lines are   ║
+  ║  parsed by the build script.                                       ║
+  ║                                                                    ║
+  ║  Markers in the surveying body that the build script resolves:     ║
+  ║    {{TITLE}}         → blank at boot; replaced at storey-mount     ║
+  ║    {{EQUIP_OPTIONS}} → populated from equipment.js at boot         ║
+  ║    {{PIN_SVG_BTN}}   → the small pin glyph inlined as SVG          ║
+  ╚════════════════════════════════════════════════════════════════════╝
+-->
+<!-- AVSCOUT_BODY_BEGIN -->
+<!-- AVSCOUT_BODY_END -->
+
+<!-- External deps used by the surveying app -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+<!-- Bootstrap: open the DB, pick the last opened storey (if any),
+     and initialise the surveying app. After that, all UI lives inside
+     avscout.js. -->
+<script type="module" src="boot.js"></script>
+</body>
+</html>
