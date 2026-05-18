@@ -62,10 +62,33 @@ function normaliseExcelType(str){
   if(str==null) return '';
   return String(str).replace(/\u00a0/g,' ').replace(/\s+/g,' ').trim().toLowerCase();
 }
-// Exact match against any alias in t.x (excelMatch). Returns null if
-// no type matches — caller routes the row into the Unmatched bucket.
+// Stipl's newer XLSX export puts an admin URL in the Equipment Type
+// column (e.g. "/admin/data/avrack/106/change/") rather than a
+// human-readable label. Extract the slug between /data/ and the numeric
+// id so the same alias table matches both old and new exports.
+//   "/admin/data/avrack/106/change/"      -> "avrack"
+//   "/admin/data/wirelesspresentation/3/" -> "wirelesspresentation"
+// Returns null if the input doesn't look like an admin URL.
+function extractStiplTypeSlug(str){
+  if(!str) return null;
+  const m=/\/admin\/data\/([a-z0-9_]+)\/\d+/i.exec(String(str));
+  return m ? m[1].toLowerCase() : null;
+}
+
+// Numeric ID from the same URL form. Returns null if absent.
+//   "/admin/data/avrack/106/change/" -> "106"
+function extractStiplTypeId(str){
+  if(!str) return null;
+  const m=/\/admin\/data\/[a-z0-9_]+\/(\d+)/i.exec(String(str));
+  return m ? m[1] : null;
+}
+
+// Match against any alias in t.x (excelMatch). Tries the URL-slug form
+// first, then falls back to the legacy human-readable form. Returns null
+// if no type matches — caller routes the row into the Unmatched bucket.
 function excelTypeToValue(str){
-  const norm=normaliseExcelType(str);
+  const slug=extractStiplTypeSlug(str);
+  const norm=slug || normaliseExcelType(str);
   if(!norm) return null;
   for(const t of EQUIP){
     if(t.x.some(m=>norm===m)) return t.v;
@@ -933,18 +956,21 @@ function buildSurveyExcelRows(){
   const rows=[];
 
   // Detail-column spec — same labels the importer reads. Order matters
-  // for column placement in the output sheet. Each row gets these 9
+  // for column placement in the output sheet. Each row gets these
   // columns whether it's an import or a newcomer; empty if no value.
   const DETAIL_COLS = [
     ['Date in Operation',     'dateInOperation'    ],
+    ['Date of Replacement',   'dateOfReplacement'  ],
+    ['Costs',                 'costs'              ],
     ['IP Address',            'ipAddress'          ],
     ['Mac Address',           'macAddress'         ],
     ['Hostname',              'hostname'           ],
-    ['Firmware',              'firmware'           ],
-    ['Firmware Installed On', 'firmwareInstalledOn'],
+    ['Main Firmware',         'firmware'           ],
+    ['Main Firmware Installed On', 'firmwareInstalledOn'],
     ['Outlet',                'outlet'             ],
     ['Switch port info',      'switchPortInfo'     ],
     ['Staging',               'staging'            ],
+    ['Comments',              'comments'           ],
   ];
   // Build a {col: value} map from a details bundle. Missing keys become
   // empty strings (xlsx wants strings/primitives, not undefined).
@@ -1429,15 +1455,18 @@ function hideSerialField(){ /* no-op: handled by drawer */ }
 // stores on details{} (and what newcomers can edit).
 const DETAILS_FIELDS = [
   { key:'dateInOperation',    label:'Date in Operation' },
+  { key:'dateOfReplacement',  label:'Date of Replacement' },
+  { key:'costs',              label:'Costs' },
   { key:'serialNumber',       label:'Sn' },        // top-level on imports, also on newcomers
   { key:'ipAddress',          label:'IP Address' },
   { key:'macAddress',         label:'Mac Address' },
   { key:'hostname',           label:'Hostname' },
-  { key:'firmware',           label:'Firmware' },
-  { key:'firmwareInstalledOn',label:'Firmware Installed On' },
+  { key:'firmware',           label:'Main Firmware' },
+  { key:'firmwareInstalledOn',label:'Main Firmware Installed On' },
   { key:'outlet',             label:'Outlet' },
   { key:'switchPortInfo',     label:'Switch port info' },
   { key:'staging',            label:'Staging' },
+  { key:'comments',           label:'Comments' },
 ];
 
 // Render the details drawer for the current modal context.
@@ -1577,10 +1606,11 @@ function validateSerial(v){
 }
 
 // Map detail-keys to their validator. Keys not listed have no validator
-// (free text — Firmware, Outlet, Switch port info, Staging).
+// (free text — Firmware, Outlet, Switch port info, Staging, Costs, Comments).
 const DETAIL_VALIDATORS = {
   serialNumber:        validateSerial,
   dateInOperation:     validateStrictDate,
+  dateOfReplacement:   validateStrictDate,
   firmwareInstalledOn: validateStrictDate,
   ipAddress:           validateIp,
   macAddress:          validateMac,
@@ -4283,7 +4313,9 @@ function parseImportRows(rows){
   rows.forEach(row=>{
     const keys=Object.keys(row);
     const get=name=>{ const k=keys.find(k=>norm(k)===norm(name)); return k?String(row[k]||'').trim():''; };
-    const assetId=get('ID');
+    // Legacy exports had an "ID" column; the newer URL-style export
+    // tucks the id into the Equipment Type URL (e.g. "/admin/data/avrack/106/change/").
+    const legacyId=get('ID');
     const spaceNumber=get('Space Number');
     const spaceName=get('Space Name');
     const equipType=get('Equipment Type');
@@ -4295,25 +4327,39 @@ function parseImportRows(rows){
     const ipAddress          = get('IP Address');
     const macAddress         = get('Mac Address');
     const hostname           = get('Hostname');
-    const firmware           = get('Firmware');
-    const firmwareInstalledOn= get('Firmware Installed On');
+    // Firmware: newer exports split into Main/Sub. Treat "Main" as the
+    // canonical firmware (drops "Sub"). Fall back to the legacy column
+    // name so files in the old format still import correctly.
+    const firmware           = get('Main Firmware') || get('Firmware');
+    const firmwareInstalledOn= get('Main Firmware Installed On') || get('Firmware Installed On');
     const outlet             = get('Outlet');
     const switchPortInfo     = get('Switch port info');
     const staging            = get('Staging');
+    // New optional fields in the URL-style export.
+    const dateOfReplacement  = get('Date of Replacement');
+    const costs              = get('Costs');
+    const comments           = get('Comments');
     if(!spaceNumber) return;
 
     const mappedType=excelTypeToValue(equipType);
     if(mappedType==null){
-      // Equipment type doesn't match any of the 21. Bucket by the raw
-      // Excel string (trimmed but otherwise verbatim) so the modal can
-      // show the user exactly what's in their file.
-      const rawKey=String(equipType||'').trim() || '(blank)';
+      // Equipment type doesn't match any of the known types. Bucket by
+      // the raw string (or URL slug, if the cell looks like a URL) so
+      // the modal can show the user exactly what's in their file.
+      const slug=extractStiplTypeSlug(equipType);
+      const rawKey=slug || String(equipType||'').trim() || '(blank)';
       unmatched.set(rawKey, (unmatched.get(rawKey)||0)+1);
       return;
     }
 
+    // Prefer the URL-embedded id when present (stable, matches Stipl's
+    // back-end), then fall back to the legacy ID column, then a random
+    // synthetic id for files that have neither.
+    const stiplId=extractStiplTypeId(equipType);
+    const assetId=stiplId || legacyId || ('?_'+Math.random().toString(36).slice(2));
+
     matched.push({
-      assetId: assetId||('?_'+Math.random().toString(36).slice(2)),
+      assetId,
       spaceNumber,
       spaceName,
       equipType: mappedType,
@@ -4321,7 +4367,8 @@ function parseImportRows(rows){
       serialNumber: serialNumber||'',
       details: {
         dateInOperation, ipAddress, macAddress, hostname, firmware,
-        firmwareInstalledOn, outlet, switchPortInfo, staging
+        firmwareInstalledOn, outlet, switchPortInfo, staging,
+        dateOfReplacement, costs, comments
       },
     });
   });

@@ -15,13 +15,15 @@ const EQUIP_TYPES = [
   { value: 'amplifiers',         label: 'Amplifiers',         emoji: '🎚️', preselected: false,
     excelMatch: ['amplifier', 'amplifiers'] },
   { value: 'audio_processors',   label: 'Audio Processors',   emoji: '🎛️', preselected: false,
-    excelMatch: ['audio processor', 'audio processors'] },
+    excelMatch: ['audio processor', 'audio processors', 'processor'] },
   { value: 'av_via_usb',         label: 'AV via USB',         emoji: '🔌', preselected: true,
-    excelMatch: ['av via usb'] },
+    excelMatch: ['av via usb', 'avviausb'] },
   { value: 'avracks',            label: 'AVRacks',            emoji: '🗄️', preselected: true,
     excelMatch: ['avrack', 'avracks', 'av rack', 'av racks'] },
   { value: 'cameras',            label: 'Cameras',            emoji: '📷', preselected: true,
     excelMatch: ['camera', 'cameras'] },
+  { value: 'computers',          label: 'Computers',          emoji: '💻', preselected: false,
+    excelMatch: ['computer', 'computers'] },
   { value: 'controllers',        label: 'Controllers',        emoji: '🕹️', preselected: false,
     excelMatch: ['controller', 'controllers'] },
   { value: 'convertors',         label: 'Convertors',         emoji: '🔄', preselected: false,
@@ -33,7 +35,9 @@ const EQUIP_TYPES = [
   { value: 'extenders',          label: 'Extenders',          emoji: '↔️', preselected: false,
     excelMatch: ['extender', 'extenders'] },
   { value: 'interactive_boards', label: 'Interactive Boards', emoji: '📋', preselected: true,
-    excelMatch: ['interactive board', 'interactive boards', 'ia board', 'ia boards'] },
+    excelMatch: ['interactive board', 'interactive boards', 'ia board', 'ia boards', 'interactiveboard'] },
+  { value: 'led_displays',       label: 'LED Displays',       emoji: '🔆', preselected: true,
+    excelMatch: ['led', 'leds', 'led display', 'led displays'] },
   { value: 'loudspeakers',       label: 'LoudSpeakers',       emoji: '📢', preselected: true,
     excelMatch: ['loudspeaker', 'loudspeakers', 'loud speaker', 'loud speakers'] },
   { value: 'microphones',        label: 'Microphones',        emoji: '🎙️', preselected: true,
@@ -46,14 +50,20 @@ const EQUIP_TYPES = [
     excelMatch: ['projector', 'projectors'] },
   { value: 'recorders',          label: 'Recorders',          emoji: '⏺️', preselected: false,
     excelMatch: ['recorder', 'recorders'] },
+  { value: 'room_signs',         label: 'Room Signs',         emoji: '🪧', preselected: false,
+    excelMatch: ['room sign', 'room signs', 'roomsign', 'roomsigns'] },
   { value: 'screens',            label: 'Screens',            emoji: '🪟', preselected: true,
     excelMatch: ['screen', 'screens'] },
   { value: 'switchers',          label: 'Switchers',          emoji: '🔀', preselected: false,
     excelMatch: ['switcher', 'switchers'] },
+  { value: 'video_cards',        label: 'Video Cards',        emoji: '🃏', preselected: false,
+    excelMatch: ['video card', 'video cards', 'videocard', 'videocards'] },
   { value: 'video_processor',    label: 'Video Processor',    emoji: '🎞️', preselected: false,
     excelMatch: ['video processor', 'video processors'] },
   { value: 'visualizers',        label: 'Visualizers',        emoji: '🔍', preselected: true,
     excelMatch: ['visualizer', 'visualizers', 'visualiser', 'visualisers'] },
+  { value: 'wireless_presentation', label: 'Wireless Presentation', emoji: '📡', preselected: false,
+    excelMatch: ['wireless presentation', 'wirelesspresentation'] },
 ];
 
 function equipEmoji(value) {
@@ -71,12 +81,36 @@ function normaliseExcelType(str) {
   if (str == null) return '';
   return String(str).replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
 }
-// Map an Excel "Equipment Type" string to our internal value key.
-// Exact match against any alias in excelMatch (after normalisation on
-// both sides). Returns null if no type matches — caller can then route
-// the row into the "Unmatched" bucket of the pre-import modal.
+
+// Stipl's newer export format puts an admin URL in the Equipment Type
+// column (e.g. "/admin/data/avrack/106/change/") rather than a
+// human-readable label. Extract the slug between /data/ and the numeric
+// id so we can match against the same alias table.
+//   "/admin/data/avrack/106/change/"        -> "avrack"
+//   "/admin/data/wirelesspresentation/3/"   -> "wirelesspresentation"
+// Returns null if the input doesn't look like an admin URL.
+function extractStiplTypeSlug(str) {
+  if (!str) return null;
+  const m = /\/admin\/data\/([a-z0-9_]+)\/\d+/i.exec(String(str));
+  return m ? m[1].toLowerCase() : null;
+}
+
+// Likewise, pull the numeric ID out of the URL. Returns null if absent.
+//   "/admin/data/avrack/106/change/" -> "106"
+function extractStiplTypeId(str) {
+  if (!str) return null;
+  const m = /\/admin\/data\/[a-z0-9_]+\/(\d+)/i.exec(String(str));
+  return m ? m[1] : null;
+}
+
+// Map an Excel "Equipment Type" cell to our internal value key. Handles
+// both the legacy human-readable form ("Camera", "AV via USB") and the
+// newer admin-URL form ("/admin/data/camera/3/change/"). Returns null if
+// neither form matches — caller routes that row into the "Unmatched"
+// bucket of the pre-import modal.
 function excelTypeToValue(str) {
-  const norm = normaliseExcelType(str);
+  const slug = extractStiplTypeSlug(str);
+  const norm = slug || normaliseExcelType(str);
   if (!norm) return null;
   for (const t of EQUIP_TYPES) {
     if (t.excelMatch.some(m => norm === m)) return t.value;
@@ -84,4 +118,4 @@ function excelTypeToValue(str) {
   return null;
 }
 
-export { EQUIP_TYPES, equipEmoji, equipLabel, normaliseExcelType, excelTypeToValue };
+export { EQUIP_TYPES, equipEmoji, equipLabel, normaliseExcelType, excelTypeToValue, extractStiplTypeSlug, extractStiplTypeId };
