@@ -4795,9 +4795,9 @@ function loadFromStorage(){
       visited=p.visited||[];
       // Visited[] used to hold ifcguid strings. As of the data-room-code
       // refactor, it holds human-readable room codes. Strings that don't
-      // look like a room code (NN.NN.XX.NNN) are legacy entries; drop them.
-      // The user re-marks rooms on first run with the new build.
-      const ROOM_CODE_RE = /^\d{2}\.\d{2}\.[A-Z0-9]{2}\.\d{3}$/;
+      // look like a room code (building.wing.floor.room) are legacy entries; drop them.
+      // Building is 1-3 digits; wing/floor are 2 alphanumeric chars; room is 3 digits.
+      const ROOM_CODE_RE = /^\d{1,3}\.[A-Z0-9]{2}\.[A-Z0-9]{2}\.\d{3}$/;
       visited = visited.filter(v => typeof v === 'string' && ROOM_CODE_RE.test(v));
       newAssets=p.newAssets||[];
       assetStatuses=p.assetStatuses||{};

@@ -3,7 +3,7 @@
 // Caches the app shell so the PWA works offline after first load.
 // Bump CACHE on every release to invalidate stale caches.
 
-const CACHE = 'avscout-v16';
+const CACHE = 'avscout-v17';
 
 const APP_SHELL = [
   './',

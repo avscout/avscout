@@ -130,6 +130,68 @@
       justify-content: space-between;
       gap: 6px;
     }
+
+    /* ── Storage usage bar ── */
+    .storage-usage {
+      padding: 12px 18px 4px;
+    }
+    .storage-usage-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 5px;
+    }
+    .storage-usage-label {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .storage-usage-value {
+      font-family: 'DM Mono', monospace;
+      font-size: 9.5px;
+      color: var(--muted);
+    }
+    .storage-usage-track {
+      height: 5px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .storage-usage-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width 0.3s, background-color 0.3s;
+    }
+    .storage-usage-fill.amber { background: #f3a93b; }
+    .storage-usage-fill.red   { background: var(--danger); }
+    .storage-usage-warning {
+      margin-top: 8px;
+      padding: 7px 9px;
+      background: rgba(255, 95, 95, 0.10);
+      border: 1px solid rgba(255, 95, 95, 0.30);
+      border-radius: 5px;
+      font-size: 10.5px;
+      line-height: 1.35;
+      color: var(--text);
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .storage-usage-warning span { flex: 1; }
+    .storage-usage-dismiss {
+      background: transparent;
+      border: 0;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      padding: 0 2px;
+      flex-shrink: 0;
+    }
+    .storage-usage-dismiss:hover { color: var(--text); }
     .list-label {
       font-size: 10px;
       font-weight: 700;
@@ -269,7 +331,42 @@
       place-items: center;
       overflow: hidden;
     }
-    .item-preview svg { max-width: 38px; max-height: 38px; }
+    .item-preview-emoji {
+      font-size: 22px;
+      line-height: 1;
+      filter: saturate(0.85);
+    }
+
+    /* Per-item size indicator: bytes label + mini share-of-quota bar.
+       The mini-bar shares the same colour scale as the global storage
+       bar so they read as the same kind of thing. */
+    .item-size {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .item-size-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 9.5px;
+      color: var(--muted);
+      flex-shrink: 0;
+      min-width: 42px;
+    }
+    .item-size-track {
+      flex: 1;
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .item-size-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width 0.3s, background-color 0.3s;
+    }
+    .item-size-fill.amber { background: #f3a93b; }
+    .item-size-fill.red   { background: var(--danger); }
 
     .item-meta { flex: 1; min-width: 0; }
     .item-title-row {
@@ -514,6 +611,19 @@
       Capture #floorplan from Page
     </button>
     <div class="status-bar" id="statusBar"></div>
+  </div>
+
+  <!-- Storage usage bar — shown when at least one item is captured -->
+  <div class="storage-usage" id="storageUsage" style="display:none">
+    <div class="storage-usage-row">
+      <span class="storage-usage-label">Extension storage</span>
+      <span class="storage-usage-value" id="storageUsageValue">— / — MB · 0%</span>
+    </div>
+    <div class="storage-usage-track"><div class="storage-usage-fill" id="storageUsageFill"></div></div>
+    <div class="storage-usage-warning" id="storageUsageWarning" style="display:none">
+      <span>Storage is getting full. Send some captures to AVScout to free space.</span>
+      <button class="storage-usage-dismiss" id="storageUsageDismiss" title="Dismiss until next session">×</button>
+    </div>
   </div>
 
   <!-- List header -->

@@ -9,6 +9,12 @@ const countBadge   = document.getElementById('countBadge');
 const btnClearAll  = document.getElementById('btnClearAll');
 const btnExportZip = document.getElementById('btnExportZip');
 const toast        = document.getElementById('toast');
+// Storage usage bar — visible only when at least one item is captured.
+const storageUsage        = document.getElementById('storageUsage');
+const storageUsageValue   = document.getElementById('storageUsageValue');
+const storageUsageFill    = document.getElementById('storageUsageFill');
+const storageUsageWarning = document.getElementById('storageUsageWarning');
+const storageUsageDismiss = document.getElementById('storageUsageDismiss');
 
 let toastTimer = null;
 
@@ -138,17 +144,6 @@ function escHtml(str) {
 // theoretical, but the suffix costs nothing.
 let _idCounter = 0;
 function nextId(){ return Date.now().toString() + '_' + (++_idCounter); }
-
-function makeThumbnail(svgString) {
-  const div = document.createElement('div');
-  div.innerHTML = svgString;
-  const svgEl = div.querySelector('svg');
-  if (!svgEl) return null;
-  svgEl.setAttribute('width', '38');
-  svgEl.setAttribute('height', '38');
-  svgEl.removeAttribute('id');
-  return svgEl.outerHTML;
-}
 
 // Safe filename: strip characters not allowed in filenames
 function safeFilename(title) {
@@ -310,6 +305,95 @@ async function saveItems(items) {
         resolve();
       }
     });
+  });
+}
+
+// ── Storage usage bar ────────────────────────────────────────────────────────
+//
+// chrome.storage.local has a 10 MB quota (10485760 bytes). The bar shows
+// how much of that is currently in use, with a colour that shifts at
+// 60% (amber) and 80% (red). At 80%+ a warning banner appears with a
+// dismiss button — once dismissed it stays hidden for the current
+// session (re-appears on next side-panel open if still ≥80%).
+
+const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10 MB — chrome.storage.local cap
+
+async function getStorageBytes() {
+  return new Promise(resolve => {
+    if (chrome.storage && chrome.storage.local && chrome.storage.local.getBytesInUse) {
+      chrome.storage.local.getBytesInUse(null, bytes => resolve(bytes || 0));
+    } else {
+      resolve(0);
+    }
+  });
+}
+
+function formatMB(bytes) {
+  return (bytes / (1024 * 1024)).toFixed(1);
+}
+
+// Compute the on-wire byte size of an item's SVG content. Used both for
+// the per-item size label and the per-item mini-bar that shows its
+// share of the 10MB extension-storage quota.
+//
+// We measure svgContent specifically (rather than the whole item JSON)
+// because that's by far the bulk of every record — title, timestamp,
+// etc. add maybe 100 bytes per item. Close enough for a "this item is
+// big" indicator.
+//
+// TextEncoder gives the real UTF-8 byte count. svgContent.length would
+// be the UTF-16 char count, which over-counts ASCII (every char shows
+// as 1 in UTF-8) and under-counts non-BMP chars. For Stipl SVGs the two
+// numbers happen to be very close, but TextEncoder is correct.
+function itemBytes(item) {
+  if (!item || typeof item.svgContent !== 'string') return 0;
+  try {
+    return new TextEncoder().encode(item.svgContent).length;
+  } catch (_) {
+    return item.svgContent.length;
+  }
+}
+
+// Human-readable byte size. We pick the unit dynamically so small
+// items show as "12 KB" not "0.0 MB".
+function formatBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+let storageWarningDismissed = false;
+
+async function updateStorageBar() {
+  const items = await loadItems();
+  // Hide entirely when there's nothing captured yet — no point showing
+  // "0.0 / 10 MB" in the welcome state.
+  if (items.length === 0) {
+    storageUsage.style.display = 'none';
+    return;
+  }
+  storageUsage.style.display = '';
+
+  const bytes = await getStorageBytes();
+  const pct   = Math.min(100, (bytes / STORAGE_QUOTA_BYTES) * 100);
+
+  storageUsageValue.textContent =
+    `${formatMB(bytes)} / ${formatMB(STORAGE_QUOTA_BYTES)} MB \u00b7 ${Math.round(pct)}%`;
+  storageUsageFill.style.width = pct.toFixed(1) + '%';
+
+  storageUsageFill.classList.remove('amber', 'red');
+  if (pct >= 80)      storageUsageFill.classList.add('red');
+  else if (pct >= 60) storageUsageFill.classList.add('amber');
+
+  // Show the warning banner above ≥80% unless dismissed this session.
+  const shouldWarn = pct >= 80 && !storageWarningDismissed;
+  storageUsageWarning.style.display = shouldWarn ? '' : 'none';
+}
+
+if (storageUsageDismiss) {
+  storageUsageDismiss.addEventListener('click', () => {
+    storageWarningDismissed = true;
+    storageUsageWarning.style.display = 'none';
   });
 }
 
@@ -7973,6 +8057,7 @@ async function render() {
 
   if (!hasItems) {
     emptyState.style.display = 'flex';
+    updateStorageBar();
     return;
   }
   emptyState.style.display = 'none';
@@ -7994,13 +8079,23 @@ async function render() {
     card.className   = 'item-card';
     card.dataset.idx = idx;
 
-    const thumb = makeThumbnail(item.svgContent) || `
-      <svg viewBox="0 0 38 38" fill="none">
-        <rect x="3" y="3" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
-        <rect x="21" y="3" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
-        <rect x="3" y="21" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
-        <rect x="21" y="21" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
-      </svg>`;
+    // Per-item size: bytes-encoded count of the SVG content, plus the
+    // share-of-quota percentage (used for the mini-bar width). The two
+    // numbers ratio cleanly to the global storage bar at the top — each
+    // card's mini-bar is a slice of that overall fill.
+    const bytes = itemBytes(item);
+    const sharePct = Math.min(100, (bytes / STORAGE_QUOTA_BYTES) * 100);
+    let shareCls = '';
+    if (sharePct >= 10)     shareCls = 'red';
+    else if (sharePct >= 6) shareCls = 'amber';
+    // Visual width: very small items would render as a nearly-invisible
+    // hairline. Boost everything to at least 2% of the bar so it reads.
+    const visualWidth = Math.max(2, sharePct);
+    const sizeRow = `
+      <div class="item-size">
+        <span class="item-size-label">${formatBytes(bytes)}</span>
+        <div class="item-size-track"><div class="item-size-fill ${shareCls}" style="width: ${visualWidth.toFixed(1)}%"></div></div>
+      </div>`;
 
     const subtitle = shortenUrl(item.pageUrl);
     const storeyBadge = item.storeyName
@@ -8021,7 +8116,7 @@ async function render() {
 
     card.innerHTML = `
       <div class="item-top">
-        <div class="item-preview">${thumb}</div>
+        <div class="item-preview"><span class="item-preview-emoji" role="img" aria-label="floorplan">📐</span></div>
         <div class="item-meta">
           <div class="item-title-row">
             <div class="item-title" title="${escHtml(item.title)}">${escHtml(item.title)}</div>
@@ -8029,6 +8124,7 @@ async function render() {
             <div class="item-time">${formatTime(item.timestamp)}</div>
           </div>
           <div class="item-url" title="${escHtml(item.pageUrl)}">${escHtml(subtitle)}</div>
+          ${sizeRow}
           ${pathRow}
         </div>
       </div>
@@ -8083,6 +8179,7 @@ async function render() {
   }
 
   bindCardEvents();
+  updateStorageBar();
 }
 
 // ── Card events ──────────────────────────────────────────────────────────────
@@ -8191,7 +8288,25 @@ function bindCardEvents() {
       const item  = items[idx];
       try {
         await openInAVScout(item);
+        // Handoff succeeded: AVScout's tab has the SVG content waiting
+        // in its window via postMessage. We trust that AVScout will
+        // persist it (boot.js wires the listener before init). Remove
+        // the item from the extension so it doesn't eat storage.
+        //
+        // Re-load items rather than using the original snapshot — the
+        // user might have triggered a parallel capture or delete while
+        // this handoff was in flight. We splice by matching timestamp +
+        // storeyName, not by index, for the same reason.
+        const fresh = await loadItems();
+        const remaining = fresh.filter(it =>
+          !(it.timestamp === item.timestamp && it.storeyName === item.storeyName)
+        );
+        if (remaining.length !== fresh.length) {
+          await saveItems(remaining);
+        }
+        render();
       } catch (e) {
+        // Handoff failed: keep the item around so the user can retry.
         showToast('Open in AVScout failed: ' + (e.message || 'unknown'));
       }
     });

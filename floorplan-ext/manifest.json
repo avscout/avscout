@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Floorplan Collector",
-  "version": "1.6.0",
+  "version": "1.7.1",
   "description": "Capture, manage and export interactive SVG floorplans",
   "permissions": [
     "scripting",
