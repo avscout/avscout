@@ -9,12 +9,6 @@ const countBadge   = document.getElementById('countBadge');
 const btnClearAll  = document.getElementById('btnClearAll');
 const btnExportZip = document.getElementById('btnExportZip');
 const toast        = document.getElementById('toast');
-// Storage usage bar — visible only when at least one item is captured.
-const storageUsage        = document.getElementById('storageUsage');
-const storageUsageValue   = document.getElementById('storageUsageValue');
-const storageUsageFill    = document.getElementById('storageUsageFill');
-const storageUsageWarning = document.getElementById('storageUsageWarning');
-const storageUsageDismiss = document.getElementById('storageUsageDismiss');
 
 let toastTimer = null;
 
@@ -145,6 +139,17 @@ function escHtml(str) {
 let _idCounter = 0;
 function nextId(){ return Date.now().toString() + '_' + (++_idCounter); }
 
+function makeThumbnail(svgString) {
+  const div = document.createElement('div');
+  div.innerHTML = svgString;
+  const svgEl = div.querySelector('svg');
+  if (!svgEl) return null;
+  svgEl.setAttribute('width', '38');
+  svgEl.setAttribute('height', '38');
+  svgEl.removeAttribute('id');
+  return svgEl.outerHTML;
+}
+
 // Safe filename: strip characters not allowed in filenames
 function safeFilename(title) {
   return title.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').trim() || 'floorplan';
@@ -179,109 +184,6 @@ function buildFloorplanPath(item, kind /* 'Base' | 'Surveyed' */, ext = 'html') 
   return `Floorplans/${kindFolder}/${buildingFolder}/${filename}.${ext}`;
 }
 
-// ── View in AVScout ──────────────────────────────────────────────────────────
-//
-// The public AVScout PWA URL. Hardcoded — if it ever moves, change this.
-const AVSCOUT_URL = 'https://avscout.github.io/avscout/';
-// Origin used by content-script execution + postMessage targetOrigin.
-const AVSCOUT_ORIGIN = 'https://avscout.github.io';
-
-// Find an open AVScout tab if there is one. Matches the path prefix so
-// any sub-route under /avscout/ still counts (e.g. ?awaitImport=1 from a
-// previous handoff).
-async function findAVScoutTab() {
-  return new Promise(resolve => {
-    chrome.tabs.query({ url: AVSCOUT_URL + '*' }, tabs => {
-      resolve(tabs && tabs.length ? tabs[0] : null);
-    });
-  });
-}
-
-// Wait until a given tab reaches status === 'complete'. Resolves when
-// the page has finished loading; rejects after `timeoutMs` if it never
-// does. Uses chrome.tabs.onUpdated so we don't poll.
-function waitForTabComplete(tabId, timeoutMs = 15000) {
-  return new Promise((resolve, reject) => {
-    let done = false;
-    const timer = setTimeout(() => {
-      if (done) return;
-      done = true;
-      chrome.tabs.onUpdated.removeListener(listener);
-      reject(new Error('AVScout tab took too long to load'));
-    }, timeoutMs);
-    const listener = (updatedId, changeInfo) => {
-      if (updatedId !== tabId) return;
-      if (changeInfo.status === 'complete') {
-        if (done) return;
-        done = true;
-        clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
-    };
-    chrome.tabs.onUpdated.addListener(listener);
-    // It's possible the tab is already complete when we attach the
-    // listener (rare, but harmless to also check via get()).
-    chrome.tabs.get(tabId, t => {
-      if (chrome.runtime.lastError) return; // tab gone
-      if (t && t.status === 'complete' && !done) {
-        done = true;
-        clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
-    });
-  });
-}
-
-// Inject a postMessage into the AVScout tab carrying the SVG payload.
-// AVScout's boot.js listens for {type: 'avscout:import', svg, title}.
-async function postSvgToTab(tabId, item) {
-  // Inject in MAIN world so window.postMessage reaches AVScout's listener.
-  await chrome.scripting.executeScript({
-    target: { tabId },
-    world:  'MAIN',
-    args:   [item.svgContent, item.title || ''],
-    func: (svg, title) => {
-      // Slight delay so AVScout finishes wiring its message listener.
-      // boot.js sets it up at module load; if we arrive too early the
-      // event would be missed.
-      const send = () => window.postMessage(
-        { type: 'avscout:import', svg, title, source: 'floorplan-ext' },
-        '*'
-      );
-      // Try immediately, then again after a tick — boot.js's listener
-      // is wired before its imports resolve, but a second send is cheap
-      // and protects against load-order surprises.
-      send();
-      setTimeout(send, 250);
-    }
-  });
-}
-
-async function openInAVScout(item) {
-  if (!item || !item.svgContent) throw new Error('no SVG content');
-
-  let tab = await findAVScoutTab();
-  if (tab) {
-    // Reuse the existing tab. Focus it.
-    await chrome.tabs.update(tab.id, { active: true });
-    await chrome.windows.update(tab.windowId, { focused: true });
-  } else {
-    // Open a fresh AVScout tab. The ?awaitImport=1 query is a hint to
-    // the PWA that an import is coming — boot.js can defer auto-mount
-    // until the message arrives (avoids a flash of welcome screen).
-    tab = await chrome.tabs.create({ url: AVSCOUT_URL + '?awaitImport=1' });
-  }
-
-  // Wait for the page to be fully loaded, then post the SVG.
-  await waitForTabComplete(tab.id);
-  // Tiny extra delay so boot.js has had a tick to register listeners.
-  await new Promise(r => setTimeout(r, 150));
-  await postSvgToTab(tab.id, item);
-  showToast('✓ Sent to AVScout');
-}
-
 // ── Storage ──────────────────────────────────────────────────────────────────
 
 async function loadItems() {
@@ -305,95 +207,6 @@ async function saveItems(items) {
         resolve();
       }
     });
-  });
-}
-
-// ── Storage usage bar ────────────────────────────────────────────────────────
-//
-// chrome.storage.local has a 10 MB quota (10485760 bytes). The bar shows
-// how much of that is currently in use, with a colour that shifts at
-// 60% (amber) and 80% (red). At 80%+ a warning banner appears with a
-// dismiss button — once dismissed it stays hidden for the current
-// session (re-appears on next side-panel open if still ≥80%).
-
-const STORAGE_QUOTA_BYTES = 10 * 1024 * 1024; // 10 MB — chrome.storage.local cap
-
-async function getStorageBytes() {
-  return new Promise(resolve => {
-    if (chrome.storage && chrome.storage.local && chrome.storage.local.getBytesInUse) {
-      chrome.storage.local.getBytesInUse(null, bytes => resolve(bytes || 0));
-    } else {
-      resolve(0);
-    }
-  });
-}
-
-function formatMB(bytes) {
-  return (bytes / (1024 * 1024)).toFixed(1);
-}
-
-// Compute the on-wire byte size of an item's SVG content. Used both for
-// the per-item size label and the per-item mini-bar that shows its
-// share of the 10MB extension-storage quota.
-//
-// We measure svgContent specifically (rather than the whole item JSON)
-// because that's by far the bulk of every record — title, timestamp,
-// etc. add maybe 100 bytes per item. Close enough for a "this item is
-// big" indicator.
-//
-// TextEncoder gives the real UTF-8 byte count. svgContent.length would
-// be the UTF-16 char count, which over-counts ASCII (every char shows
-// as 1 in UTF-8) and under-counts non-BMP chars. For Stipl SVGs the two
-// numbers happen to be very close, but TextEncoder is correct.
-function itemBytes(item) {
-  if (!item || typeof item.svgContent !== 'string') return 0;
-  try {
-    return new TextEncoder().encode(item.svgContent).length;
-  } catch (_) {
-    return item.svgContent.length;
-  }
-}
-
-// Human-readable byte size. We pick the unit dynamically so small
-// items show as "12 KB" not "0.0 MB".
-function formatBytes(bytes) {
-  if (bytes < 1024) return bytes + ' B';
-  if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
-  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-}
-
-let storageWarningDismissed = false;
-
-async function updateStorageBar() {
-  const items = await loadItems();
-  // Hide entirely when there's nothing captured yet — no point showing
-  // "0.0 / 10 MB" in the welcome state.
-  if (items.length === 0) {
-    storageUsage.style.display = 'none';
-    return;
-  }
-  storageUsage.style.display = '';
-
-  const bytes = await getStorageBytes();
-  const pct   = Math.min(100, (bytes / STORAGE_QUOTA_BYTES) * 100);
-
-  storageUsageValue.textContent =
-    `${formatMB(bytes)} / ${formatMB(STORAGE_QUOTA_BYTES)} MB \u00b7 ${Math.round(pct)}%`;
-  storageUsageFill.style.width = pct.toFixed(1) + '%';
-
-  storageUsageFill.classList.remove('amber', 'red');
-  if (pct >= 80)      storageUsageFill.classList.add('red');
-  else if (pct >= 60) storageUsageFill.classList.add('amber');
-
-  // Show the warning banner above ≥80% unless dismissed this session.
-  const shouldWarn = pct >= 80 && !storageWarningDismissed;
-  storageUsageWarning.style.display = shouldWarn ? '' : 'none';
-}
-
-if (storageUsageDismiss) {
-  storageUsageDismiss.addEventListener('click', () => {
-    storageWarningDismissed = true;
-    storageUsageWarning.style.display = 'none';
   });
 }
 
@@ -8057,7 +7870,6 @@ async function render() {
 
   if (!hasItems) {
     emptyState.style.display = 'flex';
-    updateStorageBar();
     return;
   }
   emptyState.style.display = 'none';
@@ -8079,23 +7891,13 @@ async function render() {
     card.className   = 'item-card';
     card.dataset.idx = idx;
 
-    // Per-item size: bytes-encoded count of the SVG content, plus the
-    // share-of-quota percentage (used for the mini-bar width). The two
-    // numbers ratio cleanly to the global storage bar at the top — each
-    // card's mini-bar is a slice of that overall fill.
-    const bytes = itemBytes(item);
-    const sharePct = Math.min(100, (bytes / STORAGE_QUOTA_BYTES) * 100);
-    let shareCls = '';
-    if (sharePct >= 10)     shareCls = 'red';
-    else if (sharePct >= 6) shareCls = 'amber';
-    // Visual width: very small items would render as a nearly-invisible
-    // hairline. Boost everything to at least 2% of the bar so it reads.
-    const visualWidth = Math.max(2, sharePct);
-    const sizeRow = `
-      <div class="item-size">
-        <span class="item-size-label">${formatBytes(bytes)}</span>
-        <div class="item-size-track"><div class="item-size-fill ${shareCls}" style="width: ${visualWidth.toFixed(1)}%"></div></div>
-      </div>`;
+    const thumb = makeThumbnail(item.svgContent) || `
+      <svg viewBox="0 0 38 38" fill="none">
+        <rect x="3" y="3" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
+        <rect x="21" y="3" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
+        <rect x="3" y="21" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
+        <rect x="21" y="21" width="14" height="14" rx="2" stroke="#6b7280" stroke-width="1.5"/>
+      </svg>`;
 
     const subtitle = shortenUrl(item.pageUrl);
     const storeyBadge = item.storeyName
@@ -8116,7 +7918,7 @@ async function render() {
 
     card.innerHTML = `
       <div class="item-top">
-        <div class="item-preview"><span class="item-preview-emoji" role="img" aria-label="floorplan">📐</span></div>
+        <div class="item-preview">${thumb}</div>
         <div class="item-meta">
           <div class="item-title-row">
             <div class="item-title" title="${escHtml(item.title)}">${escHtml(item.title)}</div>
@@ -8124,7 +7926,6 @@ async function render() {
             <div class="item-time">${formatTime(item.timestamp)}</div>
           </div>
           <div class="item-url" title="${escHtml(item.pageUrl)}">${escHtml(subtitle)}</div>
-          ${sizeRow}
           ${pathRow}
         </div>
       </div>
@@ -8140,11 +7941,6 @@ async function render() {
             <path d="M6 1v6M3.5 4.5L6 7l2.5-2.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M1.5 10h9" stroke-linecap="round"/>
           </svg>Download HTML
-        </button>
-        <button class="item-btn view-avscout" data-idx="${idx}" title="Open this floorplan in AVScout (preserves existing data)">
-          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
-            <path d="M7 1l4 4-4 4M1 5h10" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>View in AVScout
         </button>
         ${openBtn}
         <button class="item-btn delete" data-idx="${idx}" title="Delete">
@@ -8179,7 +7975,6 @@ async function render() {
   }
 
   bindCardEvents();
-  updateStorageBar();
 }
 
 // ── Card events ──────────────────────────────────────────────────────────────
@@ -8269,46 +8064,6 @@ function bindCardEvents() {
       const item  = items[parseInt(el.dataset.idx)];
       if (!item?.downloadPath) return;
       openDownloadByPath(item.downloadPath);
-    });
-  });
-
-  // ── View in AVScout ──────────────────────────────────────────────────────
-  //
-  // Hand the SVG off to the AVScout PWA without losing existing data
-  // there. Strategy: find an open AVScout tab (or open one), wait for it
-  // to be fully loaded, then inject a small script that posts the SVG
-  // content via window.postMessage. AVScout's boot.js listens for the
-  // message and calls addStoreyFromSvg() — that's an additive op (creates
-  // a new floor or replaces the SVG on an existing one with the same
-  // identity; never wipes the IDB).
-  itemsList.querySelectorAll('.item-btn.view-avscout').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      const idx   = parseInt(btn.dataset.idx);
-      const items = await loadItems();
-      const item  = items[idx];
-      try {
-        await openInAVScout(item);
-        // Handoff succeeded: AVScout's tab has the SVG content waiting
-        // in its window via postMessage. We trust that AVScout will
-        // persist it (boot.js wires the listener before init). Remove
-        // the item from the extension so it doesn't eat storage.
-        //
-        // Re-load items rather than using the original snapshot — the
-        // user might have triggered a parallel capture or delete while
-        // this handoff was in flight. We splice by matching timestamp +
-        // storeyName, not by index, for the same reason.
-        const fresh = await loadItems();
-        const remaining = fresh.filter(it =>
-          !(it.timestamp === item.timestamp && it.storeyName === item.storeyName)
-        );
-        if (remaining.length !== fresh.length) {
-          await saveItems(remaining);
-        }
-        render();
-      } catch (e) {
-        // Handoff failed: keep the item around so the user can retry.
-        showToast('Open in AVScout failed: ' + (e.message || 'unknown'));
-      }
     });
   });
 

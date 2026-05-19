@@ -32,8 +32,6 @@ const SVG_08_01     = '<svg><g class="space_text"><text><tspan>08.03.01.050</tsp
 const SVG_08_01_W04 = '<svg><g class="space_text"><text><tspan>08.04.01.230</tspan></text></g></svg>';
 // Alphanumeric floor: K1 = basement 1 (Dutch "kelder"). Real-world case.
 const SVG_04_K1     = '<svg><g class="space_text"><text><tspan>04.00.K1.853</tspan></text></g></svg>';
-// 3-digit building (real-world: building 107). Storey is "107.00".
-const SVG_107_00    = '<svg><g class="space_text"><text><tspan>107.00.00.090</tspan></text></g></svg>';
 
 await test('deriveStorey returns building.floor, skipping wing', async () => {
   assertEq(storage.deriveStorey(SVG_17_00, 'x.svg'), '17.00');
@@ -44,15 +42,6 @@ await test('deriveStorey returns building.floor, skipping wing', async () => {
 
 await test('deriveStorey accepts alphanumeric floor segments (e.g. K1 basement)', async () => {
   assertEq(storage.deriveStorey(SVG_04_K1, '04-k1.svg'), '04.K1');
-});
-
-await test('deriveStorey accepts 3-digit buildings (e.g. 107)', async () => {
-  assertEq(storage.deriveStorey(SVG_107_00, 'x.svg'), '107.00');
-});
-
-await test('deriveStorey filename fallback handles 3-digit buildings', async () => {
-  const svgEmpty = '<svg>no codes here</svg>';
-  assertEq(storage.deriveStorey(svgEmpty, '107-00.svg'), '107.00');
 });
 
 await test('deriveStorey filename fallback accepts lowercase floor letters', async () => {

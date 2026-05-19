@@ -4795,9 +4795,9 @@ function loadFromStorage(){
       visited=p.visited||[];
       // Visited[] used to hold ifcguid strings. As of the data-room-code
       // refactor, it holds human-readable room codes. Strings that don't
-      // look like a room code (building.wing.floor.room) are legacy entries; drop them.
-      // Building is 1-3 digits; wing/floor are 2 alphanumeric chars; room is 3 digits.
-      const ROOM_CODE_RE = /^\d{1,3}\.[A-Z0-9]{2}\.[A-Z0-9]{2}\.\d{3}$/;
+      // look like a room code (NN.NN.XX.NNN) are legacy entries; drop them.
+      // The user re-marks rooms on first run with the new build.
+      const ROOM_CODE_RE = /^\d{2}\.\d{2}\.[A-Z0-9]{2}\.\d{3}$/;
       visited = visited.filter(v => typeof v === 'string' && ROOM_CODE_RE.test(v));
       newAssets=p.newAssets||[];
       assetStatuses=p.assetStatuses||{};
@@ -5145,14 +5145,8 @@ function compressKeptSvg(cloned){
   const btnResetFloor = document.getElementById('btn-reset-floor');
   const btnBulkSnip = document.getElementById('btn-bulk-snip');
   const advSummary = document.getElementById('adv-summary');
-  // New delete-section buttons. Declared up here so refreshAdvSummary
-  // can toggle their disabled state alongside the existing buttons.
-  const btnDeleteAssetsAll = document.getElementById('btn-delete-assets-all');
-  const btnDeleteThisSvg   = document.getElementById('btn-delete-this-floor-svg');
-  const btnDeleteAllSvgs   = document.getElementById('btn-delete-all-floors-svg');
-  const btnDeleteAll       = document.getElementById('btn-delete-everything');
 
-  async function refreshAdvSummary(){
+  function refreshAdvSummary(){
     const mCount = markers.filter(m=>!m.isNew).length;
     const ncCount = markers.filter(m=>m.isNew).length;
     const sCount = Object.values(assetStatuses).filter(s=>s&&s.status).length;
@@ -5165,49 +5159,11 @@ function compressKeptSvg(cloned){
     lines.push(`Visited rooms: <span class="val">${vCount}</span>`);
     advSummary.innerHTML = lines.join('<br/>');
 
-    // Per-floor button state — derived from in-memory state of the active floor.
+    // Enable/disable buttons
     btnExport.disabled      = sCount===0 && ncCount===0;
     btnExportExcel.disabled = iCount===0 && ncCount===0;
     btnResetFloor.disabled  = mCount===0 && ncCount===0 && sCount===0 && vCount===0 && iCount===0;
     btnBulkSnip.disabled    = (mCount+ncCount)===0;
-    // The "Delete this Floor" action detaches the SVG; only available
-    // when one is attached. __hasFloor is set by initAVScout when an
-    // SVG is mounted on the active floor.
-    if (btnDeleteThisSvg) btnDeleteThisSvg.disabled = !__hasFloor;
-
-    // Cross-floor button state — needs to look at every storey in IDB.
-    // We disable optimistically (assume nothing to do) and re-enable
-    // below if the listing turns up anything. This avoids a flash of
-    // "enabled, then immediately disabled" while the DB query runs.
-    if (btnDeleteAssetsAll) btnDeleteAssetsAll.disabled = true;
-    if (btnDeleteAllSvgs)   btnDeleteAllSvgs.disabled   = true;
-    if (btnDeleteAll)       btnDeleteAll.disabled       = true;
-
-    try {
-      const storeys = await __storage.listStoreys();
-      // Has at least one storey record? (i.e. anything to factory-reset)
-      const anyStoreys = storeys.length > 0;
-      // Has at least one storey with an SVG attached?
-      const anySvg = storeys.some(s => !!s.svg);
-      // Has at least one storey with any survey rows? Active floor's
-      // counts are already in memory; for others we ask IDB.
-      let anySurvey = (mCount + ncCount + sCount + vCount + iCount) > 0;
-      if (!anySurvey) {
-        for (const s of storeys) {
-          if (s.storey === __safeStorey) continue;
-          const all = await __storage.getSurveyAll(s.storey);
-          if (Object.keys(all).length > 0) { anySurvey = true; break; }
-        }
-      }
-      if (btnDeleteAssetsAll) btnDeleteAssetsAll.disabled = !anySurvey;
-      if (btnDeleteAllSvgs)   btnDeleteAllSvgs.disabled   = !anySvg;
-      // "Delete EVERYTHING" is meaningful when there's literally
-      // anything to delete — a storey record, an SVG, or a survey row.
-      if (btnDeleteAll) btnDeleteAll.disabled = !(anyStoreys || anySurvey);
-    } catch (e) {
-      // If we can't read the DB, leave the cross-floor buttons disabled.
-      // Better to make them grey than risk doing nothing on click.
-    }
   }
 
   advBtn.addEventListener('click',()=>{
@@ -5281,6 +5237,7 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete Assets on all floors ──────────────────────────────────────────
+  const btnDeleteAssetsAll = document.getElementById('btn-delete-assets-all');
   if (btnDeleteAssetsAll) btnDeleteAssetsAll.addEventListener('click', async () => {
     if (!confirm(
       'Delete survey data on EVERY floor?\n\n' +
@@ -5309,6 +5266,7 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete this Floor (= detach SVG, keep record + survey) ───────────────
+  const btnDeleteThisSvg = document.getElementById('btn-delete-this-floor-svg');
   if (btnDeleteThisSvg) btnDeleteThisSvg.addEventListener('click', async () => {
     if (!confirm(
       'Detach the floorplan SVG from this floor?\n\n' +
@@ -5325,6 +5283,7 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete all Floors (= detach every floor's SVG) ───────────────────────
+  const btnDeleteAllSvgs = document.getElementById('btn-delete-all-floors-svg');
   if (btnDeleteAllSvgs) btnDeleteAllSvgs.addEventListener('click', async () => {
     if (!confirm(
       'Drop the floorplan SVG from EVERY floor?\n\n' +
@@ -5344,6 +5303,7 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete EVERYTHING (factory reset) ────────────────────────────────────
+  const btnDeleteAll = document.getElementById('btn-delete-everything');
   if (btnDeleteAll) btnDeleteAll.addEventListener('click', async () => {
     if (!confirm(
       'FACTORY RESET — remove everything?\n\n' +
