@@ -215,6 +215,31 @@ await test('setSurveyItem and getSurveyItem round-trip a non-active storey', asy
   assertEq(v, '{"importedAssets":[{"a":1}]}');
 });
 
+await test('deleteSurveyItem removes a single key from a non-active storey', async () => {
+  await storage.setSurveyItem('19.00', 'fp_state_to_remove', 'doomed');
+  await storage.deleteSurveyItem('19.00', 'fp_state_to_remove');
+  const remaining = await storage.getSurveyAll('19.00');
+  assert(!('fp_state_to_remove' in remaining), 'key should be gone');
+});
+
+await test('clearSurvey drops every survey row but keeps the storey + svg', async () => {
+  // Populate
+  await storage.setSurveyItem('19.00', 'a', '1');
+  await storage.setSurveyItem('19.00', 'b', '2');
+  await storage.setSurveyItem('19.00', 'c', '3');
+  // Make sure they're there
+  const before = await storage.getSurveyAll('19.00');
+  assert(Object.keys(before).length >= 3, 'rows should exist before clear');
+  // Clear
+  await storage.clearSurvey('19.00');
+  // Verify rows gone
+  const after = await storage.getSurveyAll('19.00');
+  assertEq(Object.keys(after).length, 0, 'survey should be empty');
+  // Verify storey record still exists (clearSurvey is non-destructive to it)
+  const rec = await storage.getStorey('19.00');
+  assert(rec != null, 'storey record should still exist');
+});
+
 console.log('');
 console.log(`${passes} passed, ${failures} failed`);
 process.exit(failures > 0 ? 1 : 0);

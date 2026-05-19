@@ -7930,17 +7930,17 @@ async function render() {
         </div>
       </div>
       <div class="item-actions">
-        <button class="item-btn copy" data-idx="${idx}" title="Copy SVG">
-          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
-            <rect x="4" y="4" width="7" height="7" rx="1"/>
-            <path d="M2 8V2h6" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>Copy SVG
-        </button>
-        <button class="item-btn download" data-idx="${idx}" title="Download HTML">
+        <button class="item-btn download-svg" data-idx="${idx}" title="Download SVG (for AVScout)">
           <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
             <path d="M6 1v6M3.5 4.5L6 7l2.5-2.5" stroke-linecap="round" stroke-linejoin="round"/>
             <path d="M1.5 10h9" stroke-linecap="round"/>
-          </svg>Download
+          </svg>Download SVG
+        </button>
+        <button class="item-btn download" data-idx="${idx}" title="Download interactive HTML">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M6 1v6M3.5 4.5L6 7l2.5-2.5" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M1.5 10h9" stroke-linecap="round"/>
+          </svg>Download HTML
         </button>
         ${openBtn}
         <button class="item-btn delete" data-idx="${idx}" title="Delete">
@@ -7980,11 +7980,35 @@ async function render() {
 // ── Card events ──────────────────────────────────────────────────────────────
 
 function bindCardEvents() {
-  itemsList.querySelectorAll('.item-btn.copy').forEach(btn => {
+  // Download the raw SVG file. Lands at Floorplans/Base/Building XX/<floor>.svg
+  // — the same hierarchy Download HTML uses, with .svg extension. This is
+  // the format AVScout's PWA "+ Add SVG" button expects.
+  itemsList.querySelectorAll('.item-btn.download-svg').forEach(btn => {
     btn.addEventListener('click', async () => {
+      const idx   = parseInt(btn.dataset.idx);
       const items = await loadItems();
-      await navigator.clipboard.writeText(items[parseInt(btn.dataset.idx)].svgContent);
-      showToast('✓ SVG copied to clipboard');
+      const item  = items[idx];
+      const blob  = new Blob([item.svgContent], { type: 'image/svg+xml' });
+      const url   = URL.createObjectURL(blob);
+      const path  = buildFloorplanPath(item, 'Base', 'svg');
+
+      chrome.downloads.download({
+        url,
+        filename: path,
+        conflictAction: 'overwrite',
+        saveAs: false
+      }, (downloadId) => {
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+        if (chrome.runtime.lastError || !downloadId) {
+          showToast('Download failed: ' + (chrome.runtime.lastError?.message || 'unknown'));
+          return;
+        }
+        // The SVG download is a fire-and-forget handoff to AVScout; we
+        // deliberately don't persist its path. The interactive HTML
+        // download still gets `item.downloadPath` (used by the Open
+        // button + path subtitle) — separate intent, separate field.
+        showToastWithAction(`✓ Saved to ${path}`, 'Open', () => openDownloadByPath(path));
+      });
     });
   });
 
@@ -8145,7 +8169,7 @@ btnCapture.addEventListener('click', async () => {
 //
 // Bundles every captured floorplan as a raw .svg file inside a Floorplans/Base/
 // Building XX/ hierarchy — the same path scheme that the per-item Download
-// HTML uses, but with .svg files and the same SVG content as Copy SVG.
+// HTML uses, but with .svg files containing the raw SVG content.
 
 btnExportZip.addEventListener('click', async () => {
   const items = await loadItems();

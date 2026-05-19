@@ -205,6 +205,8 @@ ${appStripped}
       createStoreyIfMissing: async () => ({ status: 'exists' }),
       setSurveyItem: async () => {},
       getSurveyItem: async () => null,
+      deleteSurveyItem: async () => {},
+      clearSurvey: async () => {},
       getSurveyAll:  async () => ({}),
       SurveyKV: {
         bindStorey: async () => {},

@@ -369,6 +369,26 @@ export async function setSurveyItem(storey, key, value) {
 }
 
 /**
+ * Delete a single survey row from a (possibly non-active) storey.
+ * Paired with setSurveyItem for cleanup workflows.
+ */
+export async function deleteSurveyItem(storey, key) {
+  return _surveyDelete(storey, key);
+}
+
+/**
+ * Drop every survey row for a (possibly non-active) storey, leaving the
+ * storey record + its SVG intact. Used by the "Delete Assets on all
+ * floors" action in the Data modal.
+ */
+export async function clearSurvey(storey) {
+  const all = await _surveyListAll(storey);
+  for (const k of Object.keys(all)) {
+    await _surveyDelete(storey, k);
+  }
+}
+
+/**
  * Direct read from a (possibly non-active) storey's survey KV. Paired
  * with setSurveyItem for read-modify-write workflows.
  */

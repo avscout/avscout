@@ -5190,6 +5190,27 @@ function compressKeptSvg(cloned){
     advOverlay.classList.remove('open');
   });
 
+  // Wipe everything that belongs to the active floor's survey state.
+  // Used by both "Delete Assets on this floor" (with confirm) and
+  // "Delete Assets on all floors" (which calls this for the active
+  // floor and additionally clears the IDB rows for other floors).
+  function wipeActiveFloorSurvey() {
+    markers=[];
+    newAssets=[];
+    assetStatuses={};
+    lastSnapshot={};
+    importedAssets=[];
+    wrap.querySelectorAll('.fp-visited').forEach(el=>el.classList.remove('fp-visited'));
+    visited=[];
+    if(selectedPath){ selectedPath.classList.remove('fp-selected'); selectedPath.style.fill=''; selectedPath=null; showInfoBar(null); }
+    removeImportHighlight();
+    removeDiscoHighlight();
+    clearImportStripUI();
+    try{ localStorage.removeItem(SK); }catch(e){}
+    renderMarkers();
+    renderPanel();
+  }
+
   btnResetFloor.addEventListener('click',()=>{
     if(btnResetFloor.disabled) return;
 
@@ -5201,7 +5222,7 @@ function compressKeptSvg(cloned){
       visited:    visited.length,
       imports:    importedAssets.length
     };
-    const lines=['Reset floor will delete:', ''];
+    const lines=['Delete Assets on this floor will delete:', ''];
     if(counts.markers>0)  lines.push(`• ${counts.markers} marker${counts.markers===1?'':'s'}`);
     if(counts.newcomers>0)lines.push(`• ${counts.newcomers} newcomer${counts.newcomers===1?'':'s'}`);
     if(counts.statuses>0) lines.push(`• ${counts.statuses} survey status${counts.statuses===1?'':'es'}`);
@@ -5210,33 +5231,119 @@ function compressKeptSvg(cloned){
     lines.push('', 'Continue?');
     if(!confirm(lines.join('\n'))) return;
 
-    // Wipe everything
-    markers=[];
-    newAssets=[];
-    assetStatuses={};
-    lastSnapshot={};
-    importedAssets=[];
-    wrap.querySelectorAll('.fp-visited').forEach(el=>el.classList.remove('fp-visited'));
-    visited=[];
-    if(selectedPath){ selectedPath.classList.remove('fp-selected'); selectedPath.style.fill=''; selectedPath=null; showInfoBar(null); }
-
-    // Strip any lingering eye-button highlight classes (in case the user was
-    // holding an eye button when reset was tapped, or in case a class survived).
-    removeImportHighlight();
-    removeDiscoHighlight();
-
-    // Return the import strip to its empty look — without this, the
-    // "Imported from cache" text persists after a reset because nothing
-    // else redraws it. (The disco strip resets via renderPanel.)
-    clearImportStripUI();
-
-    // Drop the key from localStorage entirely so next load is truly fresh
-    try{ localStorage.removeItem(SK); }catch(e){}
-
-    renderMarkers();
-    renderPanel();
+    wipeActiveFloorSurvey();
     advOverlay.classList.remove('open');
-    showFpToast('✓ Floor reset to clean state');
+    showFpToast('✓ Assets deleted on this floor');
+  });
+
+  // ── Delete Assets on all floors ──────────────────────────────────────────
+  const btnDeleteAssetsAll = document.getElementById('btn-delete-assets-all');
+  if (btnDeleteAssetsAll) btnDeleteAssetsAll.addEventListener('click', async () => {
+    if (!confirm(
+      'Delete survey data on EVERY floor?\n\n' +
+      'This removes markers, statuses, visited rooms, imported assets, and\n' +
+      'newcomers from every floor. The floor records and floorplan SVGs stay.\n\n' +
+      'Continue?'
+    )) return;
+
+    // Step 1: wipe the active floor's in-memory + cached state.
+    wipeActiveFloorSurvey();
+
+    // Step 2: drop the IDB survey rows for every other floor.
+    try {
+      const storeys = await __storage.listStoreys();
+      for (const s of storeys) {
+        if (s.storey === __safeStorey) continue; // active floor already handled
+        await __storage.clearSurvey(s.storey);
+      }
+    } catch (e) {
+      showFpToast('Could not clear all floors: ' + e.message, true);
+      return;
+    }
+
+    advOverlay.classList.remove('open');
+    showFpToast('✓ Assets deleted on every floor');
+  });
+
+  // ── Delete this Floor (= detach SVG, keep record + survey) ───────────────
+  const btnDeleteThisSvg = document.getElementById('btn-delete-this-floor-svg');
+  if (btnDeleteThisSvg) btnDeleteThisSvg.addEventListener('click', async () => {
+    if (!confirm(
+      'Detach the floorplan SVG from this floor?\n\n' +
+      'The floor record and all survey data stay. You can attach a new SVG\n' +
+      'later from the floor\'s ⚙ menu in the left rail.\n\n' +
+      'Continue?'
+    )) return;
+    try {
+      await __storage.detachSvg(__safeStorey);
+      location.reload();
+    } catch (e) {
+      showFpToast('Could not detach: ' + e.message, true);
+    }
+  });
+
+  // ── Delete all Floors (= detach every floor's SVG) ───────────────────────
+  const btnDeleteAllSvgs = document.getElementById('btn-delete-all-floors-svg');
+  if (btnDeleteAllSvgs) btnDeleteAllSvgs.addEventListener('click', async () => {
+    if (!confirm(
+      'Drop the floorplan SVG from EVERY floor?\n\n' +
+      'All floor records and survey data stay. Each floor will show as\n' +
+      '"no SVG attached" until you re-attach one.\n\n' +
+      'Continue?'
+    )) return;
+    try {
+      const storeys = await __storage.listStoreys();
+      for (const s of storeys) {
+        if (s.svg) await __storage.detachSvg(s.storey);
+      }
+      location.reload();
+    } catch (e) {
+      showFpToast('Could not detach SVGs: ' + e.message, true);
+    }
+  });
+
+  // ── Delete EVERYTHING (factory reset) ────────────────────────────────────
+  const btnDeleteAll = document.getElementById('btn-delete-everything');
+  if (btnDeleteAll) btnDeleteAll.addEventListener('click', async () => {
+    if (!confirm(
+      'FACTORY RESET — remove everything?\n\n' +
+      'This will delete:\n' +
+      '• every floor record\n' +
+      '• every floorplan SVG\n' +
+      '• every survey row (markers, statuses, imports, visited rooms)\n' +
+      '• cached app code (service worker)\n' +
+      '• local preferences (localStorage)\n\n' +
+      'You will land on the welcome screen as if AVScout were freshly installed.\n\n' +
+      'Continue?'
+    )) return;
+
+    try {
+      // 1. Delete every floor (also wipes its survey rows).
+      const storeys = await __storage.listStoreys();
+      for (const s of storeys) {
+        await __storage.deleteStorey(s.storey);
+      }
+      // 2. Clear localStorage.
+      try { localStorage.clear(); } catch (e) {}
+      // 3. Clear sessionStorage.
+      try { sessionStorage.clear(); } catch (e) {}
+      // 4. Unregister service workers and clear their caches so the next
+      //    load fetches a fresh bundle.
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const r of regs) await r.unregister();
+      }
+      if ('caches' in window) {
+        const names = await caches.keys();
+        for (const n of names) await caches.delete(n);
+      }
+    } catch (e) {
+      showFpToast('Factory reset hit an error: ' + e.message, true);
+      return;
+    }
+
+    // Hard navigate to the root so we don't carry any in-memory state forward.
+    location.replace(location.pathname);
   });
 
   // ── Bulk snip: one SVG per room that has markers, bundled in a zip ──

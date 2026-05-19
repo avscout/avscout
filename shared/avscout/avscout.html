@@ -269,9 +269,26 @@
             <div class="adv-progress-text" id="bulk-snip-text"></div>
           </div>
         </button>
+        <div class="adv-section-divider">Delete</div>
         <button class="adv-btn adv-btn-danger" id="btn-reset-floor">
-          <div class="adv-btn-label">Reset floor</div>
-          <div class="adv-btn-sub">Clears everything: markers, statuses, newcomers, imports, visited rooms.</div>
+          <div class="adv-btn-label">Delete Assets on this floor</div>
+          <div class="adv-btn-sub">Clears markers, statuses, newcomers, imports, visited rooms for the active floor. The floor + SVG stay.</div>
+        </button>
+        <button class="adv-btn adv-btn-danger" id="btn-delete-assets-all">
+          <div class="adv-btn-label">Delete Assets on all floors</div>
+          <div class="adv-btn-sub">Clears every floor's survey data. All floors + SVGs stay.</div>
+        </button>
+        <button class="adv-btn adv-btn-danger" id="btn-delete-this-floor-svg">
+          <div class="adv-btn-label">Delete this Floor</div>
+          <div class="adv-btn-sub">Drops the floorplan SVG on the active floor. Survey data + the floor record stay (you can re-attach an SVG later).</div>
+        </button>
+        <button class="adv-btn adv-btn-danger" id="btn-delete-all-floors-svg">
+          <div class="adv-btn-label">Delete all Floors</div>
+          <div class="adv-btn-sub">Drops every floor's SVG. Survey data + floor records stay.</div>
+        </button>
+        <button class="adv-btn adv-btn-danger" id="btn-delete-everything">
+          <div class="adv-btn-label">Delete EVERYTHING</div>
+          <div class="adv-btn-sub">Factory reset. Removes every floor, every SVG, every survey row, cached app code, and local preferences. Use this if something is broken and you want a fully clean re-bootstrap.</div>
         </button>
       </div>
     </div>
@@ -483,7 +500,7 @@
      brand. JSON import lives in the Data modal, not in the rail. -->
 <aside id="floor-rail">
   <div class="rail-actions">
-    <button id="btn-add-svg" class="rail-btn primary" title="Add a floor by loading an SVG">+ Add SVG</button>
+    <button id="btn-add-svg" class="rail-btn primary" title="Add a floor by loading a floorplan SVG">+ Add Floorplan SVG</button>
   </div>
   <div id="rail-tree" class="rail-tree"></div>
 </aside>
@@ -503,8 +520,8 @@
   <div class="empty-card">
     <div class="empty-ico">📐</div>
     <h2>No floorplan loaded</h2>
-    <p>Tap "+ Load SVG" to add your first floorplan.</p>
-    <button id="empty-svg-btn" class="empty-btn">+ Load SVG</button>
+    <p>Tap "+ Add Floorplan SVG" to add your first floorplan.</p>
+    <button id="empty-svg-btn" class="empty-btn">+ Add Floorplan SVG</button>
   </div>
 </div>
 
