@@ -4795,9 +4795,9 @@ function loadFromStorage(){
       visited=p.visited||[];
       // Visited[] used to hold ifcguid strings. As of the data-room-code
       // refactor, it holds human-readable room codes. Strings that don't
-      // look like a room code (NN.NN.XX.NNN) are legacy entries; drop them.
-      // The user re-marks rooms on first run with the new build.
-      const ROOM_CODE_RE = /^\d{2}\.\d{2}\.[A-Z0-9]{2}\.\d{3}$/;
+      // look like a room code (building.wing.floor.room) are legacy entries; drop them.
+      // Building is 1-3 digits; wing/floor are 2 alphanumeric chars; room is 3 digits.
+      const ROOM_CODE_RE = /^\d{1,3}\.[A-Z0-9]{2}\.[A-Z0-9]{2}\.\d{3}$/;
       visited = visited.filter(v => typeof v === 'string' && ROOM_CODE_RE.test(v));
       newAssets=p.newAssets||[];
       assetStatuses=p.assetStatuses||{};
@@ -4899,31 +4899,6 @@ function clearImportStripUI(){
   // Open the panel (small delay so the layout has settled)
   setTimeout(()=>setPanelOpen(true),200);
 })();
-
-// ── Save: bake state into downloadable HTML ───────────────
-document.getElementById('btnSaveMarkers').addEventListener('click',()=>{
-  const state=JSON.stringify({
-    markers, visited,
-    newAssets,
-    assetStatuses,
-    importedAssets
-  });
-  let html=document.documentElement.outerHTML;
-  html=html
-    .replace(/const SK='[^']+';/,`const SK='baked';`)
-    .replace(/loadFromStorage\(\);/,`(function(){const p=${state};markers=p.markers||[];visited=p.visited||[];newAssets=p.newAssets||[];assetStatuses=p.assetStatuses||{};if(p.importedAssets&&p.importedAssets.length)importedAssets=p.importedAssets;})()`);
-  const blob=new Blob([html],{type:'text/html'});
-  // Chrome's <a download> flattens folder paths, so a flat filename is the
-  // honest choice: "<storey>_saved.html" lands next to its base file alphabetically
-  // when Downloads is sorted.
-  const storey = __safeStorey;
-  const safeName = s => String(s||'').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').trim() || 'floorplan';
-  const dlPath = (storey ? safeName(storey) : safeName(document.title)) + '_saved.html';
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download=dlPath;
-  a.click();
-});
 
 // ── SVG snip optimisation ────────────────────────────────
 // The original SVG carries the entire floor's architectural drawing (planDWG
@@ -5145,8 +5120,14 @@ function compressKeptSvg(cloned){
   const btnResetFloor = document.getElementById('btn-reset-floor');
   const btnBulkSnip = document.getElementById('btn-bulk-snip');
   const advSummary = document.getElementById('adv-summary');
+  // New delete-section buttons. Declared up here so refreshAdvSummary
+  // can toggle their disabled state alongside the existing buttons.
+  const btnDeleteAssetsAll = document.getElementById('btn-delete-assets-all');
+  const btnDeleteThisSvg   = document.getElementById('btn-delete-this-floor-svg');
+  const btnDeleteAllSvgs   = document.getElementById('btn-delete-all-floors-svg');
+  const btnDeleteAll       = document.getElementById('btn-delete-everything');
 
-  function refreshAdvSummary(){
+  async function refreshAdvSummary(){
     const mCount = markers.filter(m=>!m.isNew).length;
     const ncCount = markers.filter(m=>m.isNew).length;
     const sCount = Object.values(assetStatuses).filter(s=>s&&s.status).length;
@@ -5159,11 +5140,49 @@ function compressKeptSvg(cloned){
     lines.push(`Visited rooms: <span class="val">${vCount}</span>`);
     advSummary.innerHTML = lines.join('<br/>');
 
-    // Enable/disable buttons
+    // Per-floor button state — derived from in-memory state of the active floor.
     btnExport.disabled      = sCount===0 && ncCount===0;
     btnExportExcel.disabled = iCount===0 && ncCount===0;
     btnResetFloor.disabled  = mCount===0 && ncCount===0 && sCount===0 && vCount===0 && iCount===0;
     btnBulkSnip.disabled    = (mCount+ncCount)===0;
+    // The "Delete this Floor" action detaches the SVG; only available
+    // when one is attached. __hasFloor is set by initAVScout when an
+    // SVG is mounted on the active floor.
+    if (btnDeleteThisSvg) btnDeleteThisSvg.disabled = !__hasFloor;
+
+    // Cross-floor button state — needs to look at every storey in IDB.
+    // We disable optimistically (assume nothing to do) and re-enable
+    // below if the listing turns up anything. This avoids a flash of
+    // "enabled, then immediately disabled" while the DB query runs.
+    if (btnDeleteAssetsAll) btnDeleteAssetsAll.disabled = true;
+    if (btnDeleteAllSvgs)   btnDeleteAllSvgs.disabled   = true;
+    if (btnDeleteAll)       btnDeleteAll.disabled       = true;
+
+    try {
+      const storeys = await __storage.listStoreys();
+      // Has at least one storey record? (i.e. anything to factory-reset)
+      const anyStoreys = storeys.length > 0;
+      // Has at least one storey with an SVG attached?
+      const anySvg = storeys.some(s => !!s.svg);
+      // Has at least one storey with any survey rows? Active floor's
+      // counts are already in memory; for others we ask IDB.
+      let anySurvey = (mCount + ncCount + sCount + vCount + iCount) > 0;
+      if (!anySurvey) {
+        for (const s of storeys) {
+          if (s.storey === __safeStorey) continue;
+          const all = await __storage.getSurveyAll(s.storey);
+          if (Object.keys(all).length > 0) { anySurvey = true; break; }
+        }
+      }
+      if (btnDeleteAssetsAll) btnDeleteAssetsAll.disabled = !anySurvey;
+      if (btnDeleteAllSvgs)   btnDeleteAllSvgs.disabled   = !anySvg;
+      // "Delete EVERYTHING" is meaningful when there's literally
+      // anything to delete — a storey record, an SVG, or a survey row.
+      if (btnDeleteAll) btnDeleteAll.disabled = !(anyStoreys || anySurvey);
+    } catch (e) {
+      // If we can't read the DB, leave the cross-floor buttons disabled.
+      // Better to make them grey than risk doing nothing on click.
+    }
   }
 
   advBtn.addEventListener('click',()=>{
@@ -5237,7 +5256,6 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete Assets on all floors ──────────────────────────────────────────
-  const btnDeleteAssetsAll = document.getElementById('btn-delete-assets-all');
   if (btnDeleteAssetsAll) btnDeleteAssetsAll.addEventListener('click', async () => {
     if (!confirm(
       'Delete survey data on EVERY floor?\n\n' +
@@ -5266,7 +5284,6 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete this Floor (= detach SVG, keep record + survey) ───────────────
-  const btnDeleteThisSvg = document.getElementById('btn-delete-this-floor-svg');
   if (btnDeleteThisSvg) btnDeleteThisSvg.addEventListener('click', async () => {
     if (!confirm(
       'Detach the floorplan SVG from this floor?\n\n' +
@@ -5283,7 +5300,6 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete all Floors (= detach every floor's SVG) ───────────────────────
-  const btnDeleteAllSvgs = document.getElementById('btn-delete-all-floors-svg');
   if (btnDeleteAllSvgs) btnDeleteAllSvgs.addEventListener('click', async () => {
     if (!confirm(
       'Drop the floorplan SVG from EVERY floor?\n\n' +
@@ -5303,7 +5319,6 @@ function compressKeptSvg(cloned){
   });
 
   // ── Delete EVERYTHING (factory reset) ────────────────────────────────────
-  const btnDeleteAll = document.getElementById('btn-delete-everything');
   if (btnDeleteAll) btnDeleteAll.addEventListener('click', async () => {
     if (!confirm(
       'FACTORY RESET — remove everything?\n\n' +
@@ -5521,6 +5536,218 @@ function compressKeptSvg(cloned){
     advOverlay.classList.remove('open');
     showFpToast(`✓ Snipped ${entries.length} room${entries.length===1?'':'s'} → ${dlPath}`);
   });
+
+  // ── Backup AVScout (export entire DB as .zip) ───────────────────────────
+  //
+  // Bundles every floor's SVG and survey JSON into a single .zip.
+  // Format:
+  //   manifest.json    → { format, savedAt, floorCount }
+  //   floors/<id>.svg  → raw SVG content per floor
+  //   surveys/<id>.json → per-floor survey state (markers/statuses/etc.)
+  //
+  // The active floor's in-memory state may have unsaved edits that
+  // haven't drained to IDB yet (SurveyKV is a write-through cache but
+  // the buffer can lag). Drain it before reading to capture every byte.
+  const btnBackup = document.getElementById('btn-backup-avscout');
+  if (btnBackup) btnBackup.addEventListener('click', async () => {
+    if (typeof JSZip === 'undefined') {
+      showFpToast('JSZip not loaded — check network', true);
+      return;
+    }
+    btnBackup.disabled = true;
+    try {
+      // Flush any pending writes for the active storey before reading.
+      if (__storage && __storage.SurveyKV && typeof __storage.SurveyKV.drain === 'function') {
+        try { await __storage.SurveyKV.drain(); } catch (_) {}
+      }
+
+      const storeys = await __storage.listStoreys();
+      if (!storeys.length) {
+        showFpToast('Nothing to back up — AVScout has no floors yet.', true);
+        return;
+      }
+
+      const zip = new JSZip();
+      let withSvg = 0;
+      for (const s of storeys) {
+        const id = s.storey; // dot form e.g. "17.00"
+        if (s.svg) {
+          zip.file(`floors/${id}.svg`, s.svg);
+          withSvg++;
+        }
+        // Survey rows live in a separate store keyed by storey + key.
+        // We don't try to interpret them here — the restore path will
+        // write them back verbatim.
+        const surveyRows = await __storage.getSurveyAll(s.storey);
+        const surveyPayload = {
+          storey: id,
+          title: s.title || id,
+          rows: surveyRows,
+        };
+        zip.file(`surveys/${id}.json`, JSON.stringify(surveyPayload));
+      }
+
+      const manifest = {
+        format:      'avscout-bundle-v1',
+        savedAt:     new Date().toISOString(),
+        floorCount:  storeys.length,
+        floorsWithSvg: withSvg,
+      };
+      zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+
+      const blob = await zip.generateAsync({
+        type:        'blob',
+        compression: 'DEFLATE',
+        compressionOptions: { level: 6 }
+      });
+
+      const stamp = new Date().toISOString().slice(0,10); // YYYY-MM-DD
+      const filename = `avscout-backup-${stamp}.zip`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = filename;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+
+      advOverlay.classList.remove('open');
+      showFpToast(`✓ Backed up ${storeys.length} floor${storeys.length===1?'':'s'} → ${filename}`);
+    } catch (err) {
+      showFpToast('Backup failed: ' + (err && err.message || 'unknown'), true);
+    } finally {
+      btnBackup.disabled = false;
+    }
+  });
+
+  // ── Load Backup ─────────────────────────────────────────────────────────
+  //
+  // Reverse of Backup. Opens a file picker, accepts an .avscout-bundle-v1
+  // ZIP, then restores each floor.
+  //   - If the floor doesn't exist → create it (writes SVG + survey rows).
+  //   - If the floor exists → confirm yes/no per floor, then replace if yes.
+  //
+  // After processing, reload onto the most recently-touched floor in the
+  // backup so initAVScout re-mounts with the new state visible.
+  const btnLoadBackup = document.getElementById('btn-load-backup');
+  const loadBackupInput = document.getElementById('loadBackupInput');
+  if (btnLoadBackup && loadBackupInput) {
+    btnLoadBackup.addEventListener('click', () => loadBackupInput.click());
+    loadBackupInput.addEventListener('change', async (ev) => {
+      const file = ev.target.files && ev.target.files[0];
+      // Reset the input so picking the same file twice in a row still fires change.
+      ev.target.value = '';
+      if (!file) return;
+      if (typeof JSZip === 'undefined') {
+        showFpToast('JSZip not loaded — check network', true);
+        return;
+      }
+      btnLoadBackup.disabled = true;
+      try {
+        const buf = await file.arrayBuffer();
+        const zip = await JSZip.loadAsync(buf);
+
+        // Validate manifest. Reject anything we don't know how to parse.
+        const manifestFile = zip.file('manifest.json');
+        if (!manifestFile) throw new Error('Not an AVScout backup (no manifest.json)');
+        const manifest = JSON.parse(await manifestFile.async('string'));
+        if (manifest.format !== 'avscout-bundle-v1') {
+          throw new Error(`Unsupported backup format: ${manifest.format || '(none)'}`);
+        }
+
+        // Group ZIP entries by storey id so we can process each floor
+        // atomically (SVG + survey together).
+        const incoming = new Map(); // storeyId → { svg?, surveyPayload? }
+        zip.forEach((path, entry) => {
+          if (entry.dir) return;
+          let m = path.match(/^floors\/([^/]+)\.svg$/);
+          if (m) {
+            const id = m[1];
+            if (!incoming.has(id)) incoming.set(id, {});
+            incoming.get(id).svgEntry = entry;
+            return;
+          }
+          m = path.match(/^surveys\/([^/]+)\.json$/);
+          if (m) {
+            const id = m[1];
+            if (!incoming.has(id)) incoming.set(id, {});
+            incoming.get(id).surveyEntry = entry;
+          }
+        });
+
+        if (incoming.size === 0) throw new Error('Backup contains no floor data');
+
+        const existing = await __storage.listStoreys();
+        const existingIds = new Set(existing.map(s => s.storey));
+
+        let restored = 0;
+        let skipped  = 0;
+        let lastTouched = null;
+        for (const [storeyId, parts] of incoming) {
+          // Decision: if storey already exists, ask per-floor.
+          if (existingIds.has(storeyId)) {
+            const label = storeyId.replace('.', '-');
+            const ok = confirm(
+              `Floor ${label} already exists in AVScout.\n\n` +
+              `Restoring will replace its SVG and survey data with the backup\u2019s version.\n\n` +
+              `Replace this floor?`
+            );
+            if (!ok) { skipped++; continue; }
+          }
+
+          const svgText = parts.svgEntry ? await parts.svgEntry.async('string') : null;
+          const surveyPayload = parts.surveyEntry
+            ? JSON.parse(await parts.surveyEntry.async('string'))
+            : null;
+
+          // Persist SVG: if present, use addStoreyFromSvg (handles both
+          // create and replace via SVG identity). If absent, fall back to
+          // createStoreyIfMissing so the storey record exists for survey rows.
+          if (svgText) {
+            await __storage.addStoreyFromSvg(svgText, `${storeyId}.svg`);
+          } else if (typeof __storage.createStoreyIfMissing === 'function') {
+            const title = surveyPayload && surveyPayload.title;
+            await __storage.createStoreyIfMissing(storeyId, title);
+          }
+
+          // Persist survey rows. Clear first so the restored set is
+          // authoritative (no leftover from a previous survey).
+          if (surveyPayload && surveyPayload.rows) {
+            if (typeof __storage.clearSurvey === 'function') {
+              try { await __storage.clearSurvey(storeyId); } catch (_) {}
+            }
+            for (const [k, v] of Object.entries(surveyPayload.rows)) {
+              await __storage.setSurveyItem(storeyId, k, v);
+            }
+          }
+
+          await __storage.touchStorey(storeyId);
+          lastTouched = storeyId;
+          restored++;
+        }
+
+        const summary = `Restored ${restored} floor${restored===1?'':'s'}` +
+                        (skipped ? `, skipped ${skipped}` : '');
+        // Stash a post-reload toast so the user sees confirmation after the
+        // reload re-mounts onto a restored floor.
+        try {
+          sessionStorage.setItem('avscout:postReloadToast', '\u2713 ' + summary);
+        } catch (_) {}
+
+        // Reload onto the most recently restored floor (it'll be the active
+        // floor on next boot because touchStorey makes it newest).
+        if (restored > 0) {
+          const u = new URL(location.href);
+          if (lastTouched) u.searchParams.set('goToFloor', lastTouched.replace('.', '-'));
+          location.replace(u.pathname + (u.search || '') + u.hash);
+        } else {
+          showFpToast(summary);
+        }
+      } catch (err) {
+        showFpToast('Load failed: ' + (err && err.message || 'unknown'), true);
+      } finally {
+        btnLoadBackup.disabled = false;
+      }
+    });
+  }
 }
 
 // ── Snip tool ─────────────────────────────────────────────

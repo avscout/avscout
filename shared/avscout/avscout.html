@@ -31,12 +31,6 @@
     </svg>Snip
   </button>
   <div class="tb-divider"></div>
-  <button class="tb-btn" id="btnSaveMarkers">
-    <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6">
-      <path d="M6 1v6M3.5 4.5L6 7l2.5-2.5" stroke-linecap="round" stroke-linejoin="round"/>
-      <path d="M1.5 10h9" stroke-linecap="round"/>
-    </svg>Save
-  </button>
   <button class="tb-btn" id="btnAdvanced" title="Data">
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round">
       <path d="M8 1.5l.9.3.3 1.3.9.4 1.1-.7.9.9-.7 1.1.4.9 1.3.3.3.9-1.3.3-.4.9.7 1.1-.9.9-1.1-.7-.9.4-.3 1.3-.9.3-.3-1.3-.9-.4-1.1.7-.9-.9.7-1.1-.4-.9-1.3-.3-.3-.9 1.3-.3.4-.9-.7-1.1.9-.9 1.1.7.9-.4.3-1.3.9-.3z"/>
@@ -269,6 +263,16 @@
             <div class="adv-progress-text" id="bulk-snip-text"></div>
           </div>
         </button>
+        <div class="adv-section-divider neutral">Backup</div>
+        <button class="adv-btn adv-btn-export" id="btn-backup-avscout">
+          <div class="adv-btn-label">Backup AVScout</div>
+          <div class="adv-btn-sub">Download every floor + survey as a single .zip file. Use this to archive your work or share a complete snapshot with a colleague.</div>
+        </button>
+        <button class="adv-btn adv-btn-import" id="btn-load-backup">
+          <div class="adv-btn-label">Load Backup</div>
+          <div class="adv-btn-sub">Restore a previously saved AVScout .zip. Floors that already exist will prompt before being replaced.</div>
+        </button>
+        <input type="file" id="loadBackupInput" accept=".zip,application/zip" style="display:none"/>
         <div class="adv-section-divider">Delete</div>
         <button class="adv-btn adv-btn-danger" id="btn-reset-floor">
           <div class="adv-btn-label">Delete Assets on this floor</div>
@@ -306,7 +310,7 @@
       <p><strong>Where the data lives.</strong> Once you import an Excel file, the asset list is stored in your browser's local cache so you don't have to re-import every time you open this floor.</p>
       <p><strong>What survives.</strong> Refreshing or reopening the file keeps your cached imports, markers, statuses, and newcomers intact.</p>
       <p><strong>What clears it.</strong> Clearing browser cookies, site data, or running this in a private/incognito window will remove the cache. Different browsers or devices each have their own cache.</p>
-      <p><strong>How to be safe.</strong> When you're done surveying, hit <strong>Save</strong> in the toolbar. That bakes the current state into a downloadable HTML file you can keep — or send to others — independent of any cache.</p>
+      <p><strong>How to be safe.</strong> When you're done surveying, open the <strong>Data</strong> modal and run <strong>Backup AVScout</strong>. That packs every floor and its survey into a downloadable .zip you can keep — or share with a colleague — independent of any cache.</p>
     </div>
     <div class="cache-info-actions">
       <button class="btn-modal btn-confirm" id="cacheInfoClose">Got it</button>

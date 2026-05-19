@@ -105,12 +105,12 @@ export async function hashSvg(svgText) {
 // e.g. "08.03.01.050" or "04.00.K1.853" (Dutch buildings use letters in
 // the floor slot for basements: K1 = kelder 1, etc.).
 // Segments:
-//   [1] building — 2 digits (only structural constant)
+//   [1] building — 1-3 digits (covers 8, 17, 107 across institutions)
 //   [2] wing     — 2 alphanumerics (can be A0, 00, etc.)
 //   [3] floor    — 2 alphanumerics (01, 17, K1, ground "00", etc.)
 //   [4] room     — 3 digits (always numeric)
 // Storey identity is building + floor (segments 1 and 3, skipping wing).
-const ROOM_CODE_RE = /\b(\d{2})\.([A-Z0-9]{2})\.([A-Z0-9]{2})\.\d{3}\b/;
+const ROOM_CODE_RE = /\b(\d{1,3})\.([A-Z0-9]{2})\.([A-Z0-9]{2})\.\d{3}\b/;
 
 /**
  * Find the first Stipl room code inside an SVG and return the storey
@@ -139,9 +139,9 @@ export function deriveStorey(svgText, fallbackFromFilename) {
   // and normalizes to uppercase.
   if (fallbackFromFilename) {
     const fn = fallbackFromFilename.replace(/\.svg$/i, '');
-    const full = /\b(\d{2})\.([A-Za-z0-9]{2})\.([A-Za-z0-9]{2})\.\d{3}\b/.exec(fn);
+    const full = /\b(\d{1,3})\.([A-Za-z0-9]{2})\.([A-Za-z0-9]{2})\.\d{3}\b/.exec(fn);
     if (full) return `${full[1]}.${full[3].toUpperCase()}`;
-    const twoSeg = /^(\d{2})[.\-_]([A-Za-z0-9]{2})/.exec(fn);
+    const twoSeg = /^(\d{1,3})[.\-_]([A-Za-z0-9]{2})/.exec(fn);
     if (twoSeg) return `${twoSeg[1]}.${twoSeg[2].toUpperCase()}`;
   }
   return null;

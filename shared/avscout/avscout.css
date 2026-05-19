@@ -51,14 +51,19 @@ html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(
   font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;
   color:var(--muted);margin-bottom:8px;
 }
-/* Sub-section divider inside a single .adv-section. Used for the
-   Delete cluster so the destructive buttons read as a group. */
+/* Sub-section divider inside a single .adv-section. Default style uses the
+   danger colour for the Delete cluster. The .neutral variant is for non-
+   destructive groupings (Backup, etc.). */
 .adv-section-divider{
   font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;
   color:var(--danger);
   margin:18px 0 8px;
   padding-top:14px;
   border-top:1px solid rgba(255,95,95,.18);
+}
+.adv-section-divider.neutral{
+  color:var(--muted);
+  border-top-color:var(--border);
 }
 .adv-summary{
   font-size:10px;color:var(--muted);font-family:monospace;
