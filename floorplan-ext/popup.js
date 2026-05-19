@@ -184,6 +184,109 @@ function buildFloorplanPath(item, kind /* 'Base' | 'Surveyed' */, ext = 'html') 
   return `Floorplans/${kindFolder}/${buildingFolder}/${filename}.${ext}`;
 }
 
+// ── View in AVScout ──────────────────────────────────────────────────────────
+//
+// The public AVScout PWA URL. Hardcoded — if it ever moves, change this.
+const AVSCOUT_URL = 'https://avscout.github.io/avscout/';
+// Origin used by content-script execution + postMessage targetOrigin.
+const AVSCOUT_ORIGIN = 'https://avscout.github.io';
+
+// Find an open AVScout tab if there is one. Matches the path prefix so
+// any sub-route under /avscout/ still counts (e.g. ?awaitImport=1 from a
+// previous handoff).
+async function findAVScoutTab() {
+  return new Promise(resolve => {
+    chrome.tabs.query({ url: AVSCOUT_URL + '*' }, tabs => {
+      resolve(tabs && tabs.length ? tabs[0] : null);
+    });
+  });
+}
+
+// Wait until a given tab reaches status === 'complete'. Resolves when
+// the page has finished loading; rejects after `timeoutMs` if it never
+// does. Uses chrome.tabs.onUpdated so we don't poll.
+function waitForTabComplete(tabId, timeoutMs = 15000) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const timer = setTimeout(() => {
+      if (done) return;
+      done = true;
+      chrome.tabs.onUpdated.removeListener(listener);
+      reject(new Error('AVScout tab took too long to load'));
+    }, timeoutMs);
+    const listener = (updatedId, changeInfo) => {
+      if (updatedId !== tabId) return;
+      if (changeInfo.status === 'complete') {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    };
+    chrome.tabs.onUpdated.addListener(listener);
+    // It's possible the tab is already complete when we attach the
+    // listener (rare, but harmless to also check via get()).
+    chrome.tabs.get(tabId, t => {
+      if (chrome.runtime.lastError) return; // tab gone
+      if (t && t.status === 'complete' && !done) {
+        done = true;
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      }
+    });
+  });
+}
+
+// Inject a postMessage into the AVScout tab carrying the SVG payload.
+// AVScout's boot.js listens for {type: 'avscout:import', svg, title}.
+async function postSvgToTab(tabId, item) {
+  // Inject in MAIN world so window.postMessage reaches AVScout's listener.
+  await chrome.scripting.executeScript({
+    target: { tabId },
+    world:  'MAIN',
+    args:   [item.svgContent, item.title || ''],
+    func: (svg, title) => {
+      // Slight delay so AVScout finishes wiring its message listener.
+      // boot.js sets it up at module load; if we arrive too early the
+      // event would be missed.
+      const send = () => window.postMessage(
+        { type: 'avscout:import', svg, title, source: 'floorplan-ext' },
+        '*'
+      );
+      // Try immediately, then again after a tick — boot.js's listener
+      // is wired before its imports resolve, but a second send is cheap
+      // and protects against load-order surprises.
+      send();
+      setTimeout(send, 250);
+    }
+  });
+}
+
+async function openInAVScout(item) {
+  if (!item || !item.svgContent) throw new Error('no SVG content');
+
+  let tab = await findAVScoutTab();
+  if (tab) {
+    // Reuse the existing tab. Focus it.
+    await chrome.tabs.update(tab.id, { active: true });
+    await chrome.windows.update(tab.windowId, { focused: true });
+  } else {
+    // Open a fresh AVScout tab. The ?awaitImport=1 query is a hint to
+    // the PWA that an import is coming — boot.js can defer auto-mount
+    // until the message arrives (avoids a flash of welcome screen).
+    tab = await chrome.tabs.create({ url: AVSCOUT_URL + '?awaitImport=1' });
+  }
+
+  // Wait for the page to be fully loaded, then post the SVG.
+  await waitForTabComplete(tab.id);
+  // Tiny extra delay so boot.js has had a tick to register listeners.
+  await new Promise(r => setTimeout(r, 150));
+  await postSvgToTab(tab.id, item);
+  showToast('✓ Sent to AVScout');
+}
+
 // ── Storage ──────────────────────────────────────────────────────────────────
 
 async function loadItems() {
@@ -7942,6 +8045,11 @@ async function render() {
             <path d="M1.5 10h9" stroke-linecap="round"/>
           </svg>Download HTML
         </button>
+        <button class="item-btn view-avscout" data-idx="${idx}" title="Open this floorplan in AVScout (preserves existing data)">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
+            <path d="M7 1l4 4-4 4M1 5h10" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>View in AVScout
+        </button>
         ${openBtn}
         <button class="item-btn delete" data-idx="${idx}" title="Delete">
           <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.4">
@@ -8064,6 +8172,28 @@ function bindCardEvents() {
       const item  = items[parseInt(el.dataset.idx)];
       if (!item?.downloadPath) return;
       openDownloadByPath(item.downloadPath);
+    });
+  });
+
+  // ── View in AVScout ──────────────────────────────────────────────────────
+  //
+  // Hand the SVG off to the AVScout PWA without losing existing data
+  // there. Strategy: find an open AVScout tab (or open one), wait for it
+  // to be fully loaded, then inject a small script that posts the SVG
+  // content via window.postMessage. AVScout's boot.js listens for the
+  // message and calls addStoreyFromSvg() — that's an additive op (creates
+  // a new floor or replaces the SVG on an existing one with the same
+  // identity; never wipes the IDB).
+  itemsList.querySelectorAll('.item-btn.view-avscout').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const idx   = parseInt(btn.dataset.idx);
+      const items = await loadItems();
+      const item  = items[idx];
+      try {
+        await openInAVScout(item);
+      } catch (e) {
+        showToast('Open in AVScout failed: ' + (e.message || 'unknown'));
+      }
     });
   });
 

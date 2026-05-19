@@ -93,7 +93,77 @@ To fix manually:
   return true; // we are reloading
 }
 
+// ── External SVG import bridge ─────────────────────────────────────────────
+//
+// The Floorplan Chrome extension hands captured SVGs to AVScout by opening
+// (or reusing) an AVScout tab and posting a message of the form:
+//   { type: 'avscout:import', svg: '<svg>...', title: '17-00', source: 'floorplan-ext' }
+// We listen for that message and persist the SVG via addStoreyFromSvg.
+//
+// We install the listener BEFORE app init so even if the message arrives
+// during boot, it's queued by the browser and we'll handle it as soon as
+// the listener is added. After init, future messages are handled too
+// (the user can capture another floor and re-send without reloading).
+//
+// On a successful import the page reloads so the surveying app re-mounts
+// onto the new floor. This is consistent with the rail's own
+// "add SVG" flow (a reload is how floor switching works).
+
+function setupExternalImportBridge() {
+  let busy = false;
+  window.addEventListener('message', async (ev) => {
+    const data = ev.data;
+    if (!data || typeof data !== 'object') return;
+    if (data.type !== 'avscout:import') return;
+    if (typeof data.svg !== 'string' || !data.svg) return;
+    if (busy) return; // ignore the double-send retry from the extension
+    busy = true;
+
+    try {
+      // Filename hint for deriveStorey's fallback path. We synthesize one
+      // from the title (e.g. "17-00" → "17.00.svg") to maximize the chance
+      // that deriveStorey can recover the storey id even from SVGs whose
+      // room codes have been stripped. Inside addStoreyFromSvg the SVG's
+      // own room codes are tried first; the filename is only a fallback.
+      const titleHint = String(data.title || '').replace(/-/g, '.');
+      const filename  = titleHint ? `${titleHint}.svg` : 'imported.svg';
+
+      const result = await storage.addStoreyFromSvg(data.svg, filename);
+      await storage.touchStorey(result.record.storey);
+
+      // Stash a post-reload toast so the user sees confirmation after the
+      // page comes back up on the imported floor.
+      const verb = result.status === 'created' ? 'Loaded'
+                 : result.status === 'svg-replaced' ? 'SVG replaced for'
+                 : 'Refreshed';
+      const label = result.record.storey.replace('.', '-');
+      try {
+        sessionStorage.setItem('avscout:postReloadToast',
+          `✓ ${verb} floor ${label} (from Floorplan extension)`);
+      } catch (_) {}
+
+      // Drop the ?awaitImport=1 query if present, then reload so initAVScout
+      // re-mounts onto the new floor.
+      const u = new URL(location.href);
+      u.searchParams.delete('awaitImport');
+      location.replace(u.pathname + (u.search ? u.search : '') + u.hash);
+    } catch (err) {
+      console.error('[boot] external import failed:', err);
+      // Surface the failure in-page. We can't toast yet (the surveying
+      // app may not be mounted), so use alert as a last resort.
+      try {
+        alert('Could not load the floorplan from the Floorplan extension:\n\n' +
+              (err && err.message ? err.message : String(err)));
+      } catch (_) {}
+      busy = false;
+    }
+  });
+}
+
 (async () => {
+  // Wire the external-import listener as early as possible.
+  setupExternalImportBridge();
+
   // Run the stale-cache check BEFORE we touch any other system. If it
   // fires, the page is about to reload — don't bother doing anything else.
   if (await detectAndRecoverFromStaleCache()) return;
