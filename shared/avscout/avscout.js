@@ -1231,6 +1231,35 @@ canvas.addEventListener('click',e=>{
       focusAfterMarkerAction(hitPath, aid);
       if(!hitPath && selectedPath) showInfoBar(selectedPath);
       showFpToast(`✓ Placed ${aid}`);
+      selectedAssetId=null;
+      setPlacingMode(false);
+      return;
+    }
+    // Existing-newcomer flow — user clicked "Set position" from the
+    // newcomer editor on a newcomer that has no marker yet. Build a
+    // markers[] entry linked to the existing newAssets entry; don't
+    // touch the newAssets entry itself (its label, equip, etc. came
+    // from the editor that just closed).
+    const na=newAssetById(aid);
+    if(na){
+      pushUndoSnapshot(aid);
+      const m = {
+        id: Date.now().toString(),
+        x: pos.x, y: pos.y,
+        equip: na.equip || 'displays',
+        label: na.label || '',
+        assetId: aid,
+        isNew: true
+      };
+      setMarkerRoomCoords(m, hitPath);
+      markers.push(m);
+      // If the click landed in a room, update the newcomer's spaceNumber
+      // to match (mirrors how draft-newcomer placement resolves the room).
+      if(pendingRoomCode) na.spaceNumber = pendingRoomCode;
+      commit();
+      focusAfterMarkerAction(hitPath, aid);
+      if(!hitPath && selectedPath) showInfoBar(selectedPath);
+      showFpToast(`✓ Placed ${aid}`);
     }
     selectedAssetId=null;
     setPlacingMode(false);
@@ -3209,7 +3238,13 @@ btnPositionMarker.addEventListener('click',()=>{
     return;
   }
   const aid=panelAssetId;
-  const ia=assetById(aid);
+  // The button may be in service of either an imported asset (the user
+  // wants to drop a marker for it) or an EXISTING newcomer that has no
+  // marker yet (the user wants to give it a position). Earlier this
+  // resolved via assetById(aid) only, which searches importedAssets —
+  // returning undefined for newcomers and silently bailing. Look up
+  // both places so newcomers work.
+  const ia = assetById(aid) || newAssetById(aid);
   closeModal();
   if(!ia) return;
   selectedAssetId=aid;
